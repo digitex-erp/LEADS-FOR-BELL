@@ -1,0 +1,5 @@
+{
+  "name": "Bell24h Lead Intelligence Engine",
+  "description": "A production-grade lead intelligence platform with real-time Google Maps data, lead scoring, and enrichment for Bell24h liquidity.",
+  "requestFramePermissions": ["geolocation"]
+}
