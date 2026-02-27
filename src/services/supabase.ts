@@ -115,6 +115,18 @@ export const trackEngagement = async (id: string) => {
   return data;
 };
 
+export const logActivity = async (action: string, details: string, companyId?: string) => {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('activity_logs')
+    .insert([{ 
+      action, 
+      details, 
+      company_id: companyId 
+    }]);
+  if (error) console.error("Logging error:", error);
+};
+
 export const getContactsForCompany = async (companyId: string) => {
   if (!supabase) return [];
   const { data, error } = await supabase

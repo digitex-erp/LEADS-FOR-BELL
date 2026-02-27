@@ -25,7 +25,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
 import { chatWithGrounding } from './services/gemini';
-import { getCompanies, Company, createCompany, updateCompanyScore, supabase, upsertCompany, trackEngagement } from './services/supabase';
+import { getCompanies, Company, createCompany, updateCompanyScore, supabase, upsertCompany, trackEngagement, logActivity } from './services/supabase';
 import { calculateLeadScore } from './services/scoring';
 import { MASTER_CATEGORIES, Category } from './constants/categories';
 import { categorizeBusiness } from './services/nlpCategorizer';
@@ -271,6 +271,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<Company | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [importPreview, setImportPreview] = useState<{ leads: Partial<Company>[], summary: Record<string, number> } | null>(null);
+  const [isProcessingImport, setIsProcessingImport] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -321,53 +323,74 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsProcessingImport(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',');
-      
-      const newLeads: Partial<Company>[] = [];
-      
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const values = lines[i].split(',');
-        const lead: any = {};
-        headers.forEach((header, index) => {
-          lead[header.trim().toLowerCase()] = values[index]?.trim();
-        });
-        
-        // NLP Categorization
-        const description = lead.description || lead.industry || lead.name;
-        const catResult = await categorizeBusiness(description);
-        
-        const enrichedLead = {
-          ...lead,
-          main_category: catResult.mainCategory,
-          sub_category: catResult.subCategory,
-          status: 'new',
-          tags: []
-        };
-        
-        const score = calculateLeadScore(enrichedLead);
-        newLeads.push({
-          ...enrichedLead,
-          lead_score: score
-        });
-      }
-
       try {
-        for (const lead of newLeads) {
-          await upsertCompany(lead);
+        const text = event.target?.result as string;
+        const lines = text.split('\n');
+        const headers = lines[0].split(',');
+        
+        const previewLeads: Partial<Company>[] = [];
+        const summary: Record<string, number> = {};
+        
+        // Process max 50 leads for preview to keep it fast
+        const processLimit = Math.min(lines.length, 51);
+        
+        for (let i = 1; i < processLimit; i++) {
+          if (!lines[i].trim()) continue;
+          const values = lines[i].split(',');
+          const lead: any = {};
+          headers.forEach((header, index) => {
+            lead[header.trim().toLowerCase()] = values[index]?.trim();
+          });
+          
+          const description = lead.description || lead.industry || lead.name;
+          const catResult = await categorizeBusiness(description);
+          
+          const enrichedLead = {
+            ...lead,
+            main_category: catResult.mainCategory,
+            sub_category: catResult.subCategory,
+            status: 'new',
+            tags: []
+          };
+          
+          summary[catResult.mainCategory] = (summary[catResult.mainCategory] || 0) + 1;
+          previewLeads.push(enrichedLead);
         }
-        fetchLeads();
-        alert(`Successfully processed ${newLeads.length} leads (Upsert active).`);
+
+        setImportPreview({ leads: previewLeads, summary });
+        setActiveTab('import-center');
       } catch (error) {
-        console.error("Import error:", error);
-        alert("Error importing leads. Check console for details.");
+        console.error("Import preview error:", error);
+        alert("Error generating import preview.");
+      } finally {
+        setIsProcessingImport(false);
       }
     };
     reader.readAsText(file);
+  };
+
+  const confirmImport = async () => {
+    if (!importPreview) return;
+    
+    setIsProcessingImport(true);
+    try {
+      for (const lead of importPreview.leads) {
+        const score = calculateLeadScore(lead);
+        await upsertCompany({ ...lead, lead_score: score });
+      }
+      fetchLeads();
+      setImportPreview(null);
+      setActiveTab('leads');
+      alert(`Successfully imported ${importPreview.leads.length} leads.`);
+    } catch (error) {
+      console.error("Final import error:", error);
+      alert("Error during final import.");
+    } finally {
+      setIsProcessingImport(false);
+    }
   };
 
   const displayLeads = leads.length > 0 
@@ -401,7 +424,13 @@ export default function App() {
             <div className="px-3">
               <select 
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCategory(val);
+                  if (val !== 'All') {
+                    logActivity('category_interest', `User filtered by ${val}`);
+                  }
+                }}
                 className="w-full bg-white/5 border border-brand-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-primary/50 text-white/70"
               >
                 <option value="All">All Categories</option>
@@ -410,6 +439,33 @@ export default function App() {
                 ))}
                 <option value="Uncategorized">Uncategorized</option>
               </select>
+            </div>
+          </section>
+
+          <section>
+            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Category Heatmap</p>
+            <div className="px-3 space-y-2">
+              {MASTER_CATEGORIES
+                .map(cat => ({
+                  name: cat.name,
+                  count: leads.filter(l => l.main_category === cat.name).length
+                }))
+                .filter(c => c.count > 0)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5)
+                .map(cat => (
+                  <div key={cat.name} className="flex items-center justify-between text-[10px]">
+                    <span className="text-white/40 truncate pr-2">{cat.name}</span>
+                    <span className="text-brand-primary font-bold">{cat.count}</span>
+                  </div>
+                ))
+              }
+              {leads.filter(l => !l.main_category || l.main_category === 'Uncategorized').length > 0 && (
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-white/20 italic">Uncategorized</span>
+                  <span className="text-white/40">{leads.filter(l => !l.main_category || l.main_category === 'Uncategorized').length}</span>
+                </div>
+              )}
             </div>
           </section>
 
@@ -708,6 +764,112 @@ export default function App() {
                 <Database size={48} className="mx-auto mb-4 opacity-10" />
                 <p>Lead management module active. Filter and export controls available.</p>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'import-center' && (
+            <div className="space-y-8 max-w-4xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-display font-bold">Bulk Import Validator</h2>
+                  <p className="text-white/40 text-sm">Review NLP categorization before committing to database</p>
+                </div>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setImportPreview(null)}
+                    className="px-6 py-2 glass rounded-xl text-sm font-bold hover:bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={confirmImport}
+                    disabled={isProcessingImport || !importPreview}
+                    className="px-6 py-2 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold hover:scale-105 transition-transform disabled:opacity-50"
+                  >
+                    {isProcessingImport ? 'Processing...' : 'Confirm & Upsert'}
+                  </button>
+                </div>
+              </div>
+
+              {importPreview && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="md:col-span-1 space-y-6">
+                    <div className="glass p-6 rounded-2xl">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-4">Pre-Categorization Report</h3>
+                      <div className="space-y-3">
+                        {Object.entries(importPreview.summary).map(([cat, count]) => (
+                          <div key={cat} className="flex justify-between items-center">
+                            <span className="text-sm text-white/70">{cat}</span>
+                            <span className="text-sm font-bold text-brand-primary">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-brand-primary/10 border border-brand-primary/20 rounded-xl">
+                      <div className="flex items-center gap-3 text-brand-primary mb-2">
+                        <ShieldCheck size={18} />
+                        <span className="text-xs font-bold uppercase tracking-widest">Trojan Horse Active</span>
+                      </div>
+                      <p className="text-[10px] text-white/60 leading-relaxed">
+                        GST numbers detected. PAN extraction and lead scoring will be triggered automatically upon confirmation.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2 glass rounded-2xl overflow-hidden">
+                    <div className="max-h-[600px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-white/5 border-b border-brand-border sticky top-0 z-10">
+                            <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Company</th>
+                            <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">NLP Category</th>
+                            <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">GST</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-brand-border">
+                          {importPreview.leads.map((lead, idx) => (
+                            <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="px-6 py-4">
+                                <p className="text-sm font-medium">{lead.name}</p>
+                                <p className="text-[10px] text-white/30">{lead.city}</p>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className="text-xs text-brand-primary font-bold">{lead.main_category}</span>
+                                <p className="text-[10px] text-white/40">{lead.sub_category}</p>
+                              </td>
+                              <td className="px-6 py-4 text-xs font-mono text-white/40">
+                                {lead.gst_number || '---'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!importPreview && !isProcessingImport && (
+                <div className="glass rounded-3xl p-20 text-center border-dashed border-2 border-white/10">
+                  <Plus size={48} className="mx-auto mb-4 text-white/10" />
+                  <h3 className="text-lg font-bold mb-2">Upload CSV to Begin</h3>
+                  <p className="text-white/40 text-sm mb-8">Your data will be analyzed by the NLP engine before import</p>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-8 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-colors"
+                  >
+                    Select CSV File
+                  </button>
+                </div>
+              )}
+              
+              {isProcessingImport && !importPreview && (
+                <div className="glass rounded-3xl p-20 text-center">
+                  <div className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+                  <h3 className="text-lg font-bold mb-2">Analyzing Data...</h3>
+                  <p className="text-white/40 text-sm">Gemini is mapping your leads to the 50 master categories</p>
+                </div>
+              )}
             </div>
           )}
         </div>
