@@ -29,6 +29,8 @@ import { getCompanies, Company, createCompany, updateCompanyScore, supabase, ups
 import { calculateLeadScore } from './services/scoring';
 import { MASTER_CATEGORIES, Category } from './constants/categories';
 import { categorizeBusiness } from './services/nlpCategorizer';
+import { simulateLeads } from './services/simulation';
+import { DashboardLayout } from './components/DashboardLayout';
 import { 
   LineChart, 
   Line, 
@@ -149,11 +151,11 @@ const StatCard = ({ label, value, trend, icon: Icon, subtext }: { label: string,
 
 const ChatBot = () => {
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
-    { role: 'model', text: "Hello! I'm your Lead Intelligence Assistant. I can help you find businesses, analyze locations, and score leads. I now support both Gemini and Claude. How can I help you today?" }
+    { role: 'model', text: "Hello! I'm your Lead Intelligence Assistant. I can help you find businesses, analyze locations, and score leads. I now support Gemini, Claude, and NVIDIA NIM models (Minimax, Qwen, Kimi). How can I help you today?" }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState<'gemini' | 'claude'>('gemini');
+  const [model, setModel] = useState<'gemini' | 'claude' | 'minimaxai/minimax-m2.5' | 'qwen/qwen3.5-397b-a17b' | 'moonshotai/kimi-k2.5'>('gemini');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -175,11 +177,21 @@ const ChatBot = () => {
       if (model === 'gemini') {
         const response = await chatWithGrounding(userMsg, messages.map(m => ({ role: m.role, parts: [{ text: m.text }] })));
         responseText = response.text || "I couldn't process that request.";
-      } else {
+      } else if (model === 'claude') {
         const response = await fetch('/api/chat/claude', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMsg, history: messages })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        responseText = data.text;
+      } else {
+        // NVIDIA NIM models
+        const response = await fetch('/api/chat/nvidia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMsg, history: messages, model })
         });
         const data = await response.json();
         if (data.error) throw new Error(data.error);
@@ -209,6 +221,9 @@ const ChatBot = () => {
           >
             <option value="gemini">Gemini 2.5</option>
             <option value="claude">Claude 3.5</option>
+            <option value="minimaxai/minimax-m2.5">NVIDIA Minimax</option>
+            <option value="qwen/qwen3.5-397b-a17b">NVIDIA Qwen</option>
+            <option value="moonshotai/kimi-k2.5">NVIDIA Kimi</option>
           </select>
           <button className="p-2 hover:bg-white/10 rounded-lg transition-colors"><MoreVertical size={16} /></button>
         </div>
@@ -273,9 +288,11 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [importPreview, setImportPreview] = useState<{ leads: Partial<Company>[], summary: Record<string, number> } | null>(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    console.log("🚀 Bell24h Orchestrator: Connected to Supabase");
     fetchLeads();
   }, []);
 
@@ -393,55 +410,40 @@ export default function App() {
     }
   };
 
+  const handleSimulate = async (category: string) => {
+    setIsSimulating(true);
+    try {
+      await simulateLeads(category, 10);
+      await fetchLeads();
+      alert(`Simulated 10 new leads for ${category}`);
+    } catch (error) {
+      console.error("Simulation error:", error);
+      alert("Error during simulation.");
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   const displayLeads = leads.length > 0 
     ? leads.filter(l => selectedCategory === 'All' || l.main_category === selectedCategory) 
     : [];
 
+  if (loading && leads.length === 0) {
+    return (
+      <div className="h-screen bg-brand-dark flex flex-col items-center justify-center text-white">
+        <div className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-6" />
+        <h2 className="text-xl font-display font-bold">Connecting to Bell24h Engine...</h2>
+        <p className="text-white/40 text-sm mt-2 font-mono">Initializing Lead Intelligence Layer</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-brand-dark text-white overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-brand-border flex flex-col p-4 gap-6 bg-brand-dark">
-        <div className="flex items-center gap-3 px-2 mb-4">
-          <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center text-brand-dark shadow-[0_0_15px_rgba(0,255,0,0.3)]">
-            <TrendingUp size={20} strokeWidth={2.5} />
-          </div>
-          <h1 className="font-display font-bold text-lg tracking-tight">Bell24h</h1>
-        </div>
-
-        <div className="space-y-6 flex-1 overflow-y-auto scrollbar-hide">
-          <section>
-            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Platform</p>
-            <nav className="space-y-1">
-              <SidebarItem icon={TrendingUp} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-              <SidebarItem icon={MessageSquare} label="Intelligence Engine" active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} />
-              <SidebarItem icon={Building2} label="Companies" active={activeTab === 'leads'} onClick={() => setActiveTab('leads')} />
-              <SidebarItem icon={Users} label="Contacts" active={activeTab === 'contacts'} onClick={() => setActiveTab('contacts')} />
-            </nav>
-          </section>
-
-          <section>
-            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Category Filter</p>
-            <div className="px-3">
-              <select 
-                value={selectedCategory}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedCategory(val);
-                  if (val !== 'All') {
-                    logActivity('category_interest', `User filtered by ${val}`);
-                  }
-                }}
-                className="w-full bg-white/5 border border-brand-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-primary/50 text-white/70"
-              >
-                <option value="All">All Categories</option>
-                {MASTER_CATEGORIES.map(cat => (
-                  <option key={cat.name} value={cat.name}>{cat.name}</option>
-                ))}
-                <option value="Uncategorized">Uncategorized</option>
-              </select>
-            </div>
-          </section>
-
+    <DashboardLayout 
+      activeTab={activeTab} 
+      setActiveTab={setActiveTab}
+      sidebarContent={
+        <>
           <section>
             <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Category Heatmap</p>
             <div className="px-3 space-y-2">
@@ -454,14 +456,22 @@ export default function App() {
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5)
                 .map(cat => (
-                  <div key={cat.name} className="flex items-center justify-between text-[10px]">
-                    <span className="text-white/40 truncate pr-2">{cat.name}</span>
+                  <button 
+                    key={cat.name} 
+                    onClick={() => {
+                      setSelectedCategory(cat.name);
+                      setActiveTab('leads');
+                      logActivity('category_interest', `Clicked heatmap: ${cat.name}`);
+                    }}
+                    className="w-full flex items-center justify-between text-[10px] hover:bg-white/5 p-1 rounded transition-colors group text-left"
+                  >
+                    <span className="text-white/40 truncate pr-2 group-hover:text-white">{cat.name}</span>
                     <span className="text-brand-primary font-bold">{cat.count}</span>
-                  </div>
+                  </button>
                 ))
               }
               {leads.filter(l => !l.main_category || l.main_category === 'Uncategorized').length > 0 && (
-                <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center justify-between text-[10px] px-1">
                   <span className="text-white/20 italic">Uncategorized</span>
                   <span className="text-white/40">{leads.filter(l => !l.main_category || l.main_category === 'Uncategorized').length}</span>
                 </div>
@@ -470,165 +480,118 @@ export default function App() {
           </section>
 
           <section>
-            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Data Operations</p>
-            <nav className="space-y-1">
-              <SidebarItem icon={Plus} label="Import Data" onClick={() => fileInputRef.current?.click()} />
-              <SidebarItem icon={ShieldCheck} label="API Keys" active={activeTab === 'api'} onClick={() => setActiveTab('api')} />
-              <SidebarItem icon={AlertCircle} label="Enrichment Logs" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
-            </nav>
-          </section>
-
-          <section>
-            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">System</p>
-            <nav className="space-y-1">
-              <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
-            </nav>
-          </section>
-        </div>
-
-        <div className="pt-4 border-t border-brand-border">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-primary/20 to-brand-primary/40 border border-brand-primary/30 flex items-center justify-center font-bold text-brand-primary text-xs">
-              SA
+            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Simulation Engine</p>
+            <div className="px-3 space-y-2">
+              <select 
+                onChange={(e) => handleSimulate(e.target.value)}
+                disabled={isSimulating}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-brand-primary focus:outline-none"
+              >
+                <option value="">Simulate Leads...</option>
+                {MASTER_CATEGORIES.map(cat => (
+                  <option key={cat.name} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold truncate">System Admin</p>
-              <p className="text-[10px] text-white/40 truncate">admin@bell24h.in</p>
+          </section>
+        </>
+      }
+    >
+      <div className="max-w-7xl mx-auto">
+        {!supabase && (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3 text-amber-200 text-sm mb-8">
+            <AlertCircle size={18} />
+            <p>Supabase is not configured. Please add <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_ANON_KEY</strong> to your environment variables.</p>
+          </div>
+        )}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8">
+            <div className="flex justify-between items-end">
+              <div>
+                <h2 className="text-3xl font-display font-bold">Intelligence Overview</h2>
+                <p className="text-white/40 text-sm mt-1">Real-time market liquidity and lead acquisition velocity</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-white/5 border border-brand-border rounded-lg px-3 py-1.5 w-64">
+                  <Search size={14} className="text-white/30" />
+                  <input 
+                    placeholder="Search leads..." 
+                    className="bg-transparent border-none text-xs focus:outline-none w-full placeholder:text-white/20"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-16 border-b border-brand-border flex items-center justify-between px-8 bg-brand-dark/50 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex flex-col">
-            <h2 className="text-2xl font-display font-bold">Intelligence Overview</h2>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Last updated: Just now</p>
-            <div className="flex items-center gap-4 bg-white/5 border border-brand-border rounded-lg px-3 py-1.5 w-64">
-              <Search size={14} className="text-white/30" />
-              <input 
-                placeholder="Search..." 
-                className="bg-transparent border-none text-xs focus:outline-none w-full placeholder:text-white/20"
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard 
+                label="Total Companies" 
+                value={leads.length.toLocaleString()} 
+                trend={`+${leads.filter(l => {
+                  const d = new Date(l.created_at || '');
+                  const now = new Date();
+                  return d.getTime() > now.getTime() - 24 * 60 * 60 * 1000;
+                }).length}`} 
+                subtext="last 24 hours" 
+                icon={Building2} 
               />
-            </div>
-          </div>
-        </header>
-
-        {/* Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          {!supabase && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3 text-amber-200 text-sm">
-              <AlertCircle size={18} />
-              <p>Supabase is not configured. Please add <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_ANON_KEY</strong> to your environment variables.</p>
-            </div>
-          )}
-          {activeTab === 'dashboard' && (
-            <>
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
-                  label="Total Companies" 
-                  value={leads.length > 0 ? leads.length.toLocaleString() : "2,543"} 
-                  trend="+180" 
-                  subtext="from last import" 
-                  icon={Building2} 
-                />
-                <StatCard 
-                  label="Qualified Leads" 
-                  value={leads.length > 0 ? leads.filter(l => l.status === 'qualified').length.toString() : "892"} 
-                  trend="+12%" 
-                  subtext="vs last month" 
-                  icon={ShieldCheck} 
-                />
-                <StatCard 
-                  label="Est. Liquidity Value" 
-                  value="₹4.2M" 
-                  subtext="Based on enriched revenue data" 
-                  icon={Database} 
-                />
-                <div className="glass p-5 rounded-xl flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
-                    <p className="text-white/60 text-sm font-medium">Enrichment Rate</p>
-                    <div className="text-white/20"><TrendingUp size={18} /></div>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold font-display">78%</h3>
-                    <div className="w-full h-1.5 bg-white/5 rounded-full mt-3 overflow-hidden">
-                      <div className="h-full bg-brand-primary w-[78%] rounded-full" />
-                    </div>
+              <StatCard 
+                label="Qualified Leads" 
+                value={leads.filter(l => l.status === 'qualified').length.toString()} 
+                trend="+12%" 
+                subtext="vs last month" 
+                icon={ShieldCheck} 
+              />
+              <StatCard 
+                label="Est. Liquidity Value" 
+                value={`₹${(leads.length * 1.5).toFixed(1)}M`} 
+                subtext="Based on enriched revenue data" 
+                icon={Database} 
+              />
+              <div className="glass p-5 rounded-xl flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <p className="text-white/60 text-sm font-medium">Enrichment Rate</p>
+                  <div className="text-white/20"><TrendingUp size={18} /></div>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold font-display">78%</h3>
+                  <div className="w-full h-1.5 bg-white/5 rounded-full mt-3 overflow-hidden">
+                    <div className="h-full bg-brand-primary w-[78%] rounded-full" />
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Velocity Chart */}
-                <div className="lg:col-span-2 glass p-6 rounded-2xl flex flex-col gap-6">
-                  <div>
-                    <h3 className="font-bold text-sm">Lead Acquisition Velocity</h3>
-                    <p className="text-xs text-white/40 mt-1">New companies ingested and processed over time</p>
-                  </div>
-                  <div className="w-full">
-                    <ResponsiveContainer width="100%" height={300} minWidth={0}>
-                      <LineChart data={VELOCITY_DATA}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis 
-                          dataKey="name" 
-                          stroke="rgba(255,255,255,0.3)" 
-                          fontSize={10} 
-                          tickLine={false} 
-                          axisLine={false} 
-                        />
-                        <YAxis 
-                          stroke="rgba(255,255,255,0.3)" 
-                          fontSize={10} 
-                          tickLine={false} 
-                          axisLine={false} 
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                          itemStyle={{ fontSize: '12px' }}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#00FF00" 
-                          strokeWidth={2} 
-                          dot={false} 
-                          activeDot={{ r: 4, fill: '#00FF00' }} 
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value2" 
-                          stroke="#3b82f6" 
-                          strokeWidth={2} 
-                          dot={false} 
-                          activeDot={{ r: 4, fill: '#3b82f6' }} 
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 glass p-6 rounded-2xl flex flex-col gap-6">
+                <div>
+                  <h3 className="font-bold text-sm">Lead Acquisition Velocity</h3>
+                  <p className="text-xs text-white/40 mt-1">New companies ingested and processed over time</p>
                 </div>
-
-                {/* Distribution Chart */}
-                <div className="glass p-6 rounded-2xl flex flex-col gap-6">
-                  <div>
-                    <h3 className="font-bold text-sm">Scoring Distribution</h3>
-                    <p className="text-xs text-white/40 mt-1">Lead quality breakdown by current score</p>
-                  </div>
-                  <div className="w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height={300} minWidth={0}>
+                <div className="w-full h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={VELOCITY_DATA}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                        itemStyle={{ color: '#00FF00' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#00FF00" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="lg:col-span-1 flex flex-col gap-8">
+                <div className="glass p-6 rounded-2xl flex-1 flex flex-col gap-6">
+                  <h3 className="font-bold text-sm">Lead Distribution</h3>
+                  <div className="flex-1 min-h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={DISTRIBUTION_DATA}
-                          cx="50%"
-                          cy="50%"
                           innerRadius={60}
-                          outerRadius={100}
+                          outerRadius={80}
                           paddingAngle={5}
                           dataKey="value"
                         >
@@ -636,20 +599,16 @@ export default function App() {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                        />
+                        <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
+                <MarketMap />
               </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-display font-bold">Recent Intelligence</h2>
-                  <button className="text-xs font-semibold text-brand-primary hover:underline" onClick={() => setActiveTab('leads')}>View All</button>
-                </div>
+            </div>
+          </div>
+        )}
 
                   <div className="glass rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
@@ -735,7 +694,7 @@ export default function App() {
                     </table>
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
           {activeTab === 'chat' && (
@@ -873,7 +832,7 @@ export default function App() {
             </div>
           )}
         </div>
-      </main>
+      </DashboardLayout>
 
       {/* Lead Detail Modal */}
       <AnimatePresence>
