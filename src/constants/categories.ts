@@ -1,0 +1,65 @@
+export interface Category {
+  name: string;
+  subcategories: string[];
+}
+
+export const MASTER_CATEGORIES: Category[] = [
+  { name: "Agriculture", subcategories: ["Agriculture Equipment", "Fresh Flowers", "Seeds & Saplings", "Tractor Parts", "Animal Feed", "Irrigation Systems", "Fertilizers & Pesticides", "Organic Farming Tools"] },
+  { name: "Apparel & Fashion", subcategories: ["Sarees", "Sunglasses", "Unisex Clothing", "Suitcases & Briefcases", "Footwear", "Textiles & Fabrics", "Sportswear", "Fashion Accessories"] },
+  { name: "Automobile", subcategories: ["Auto Electrical Parts", "Engine Parts", "Commercial Vehicles", "Coach Building", "Car Accessories", "Tires & Tubes", "Lubricants & Greases"] },
+  { name: "Ayurveda & Herbal Products", subcategories: ["Herbal Henna", "Ayurvedic Extracts", "Herbal Foods", "Ayurvedic Medicines", "Herbal Oils", "Natural Skincare"] },
+  { name: "Business Services", subcategories: ["Turnkey Project Services", "Environmental Services", "Business Consultants", "Import/Export Documentation", "Financial Consulting", "Legal & Compliance Services"] },
+  { name: "Chemical", subcategories: ["Catalysts", "PET Granules", "Dyes & Pigments", "Agrochemicals", "Specialty Chemicals", "Industrial Gases", "Detergent Chemicals"] },
+  { name: "Computers and Internet", subcategories: ["Software Development", "Data Entry Services", "Web Development", "Cloud Computing Solutions", "E-commerce Platforms", "Cybersecurity Services", "IT Hardware & Peripherals"] },
+  { name: "Consumer Electronics", subcategories: ["Surveillance Equipment", "Photography Supplies", "Mobile Accessories", "Televisions & Home Audio", "Laptops & Tablets", "Wearables (Smartwatches, Fitness Trackers)"] },
+  { name: "Cosmetics & Personal Care", subcategories: ["Body Care", "Ayurvedic Oils", "Fragrances", "Hair Care Products", "Makeup & Beauty Products", "Organic Skincare", "Personal Hygiene Products"] },
+  { name: "Electronics & Electrical", subcategories: ["Cables & Wires", "Active Devices", "Testing Devices", "Electrical Transformers", "Batteries & Energy Storage", "Switches & Circuit Breakers"] },
+  { name: "Food Products & Beverage", subcategories: ["Vegetables", "Dry Fruits", "Baked Goods", "Cooking Spices", "Dairy Products", "Canned Foods", "Beverages (Juices, Soft Drinks, Coffee)"] },
+  { name: "Furniture & Carpentry Services", subcategories: ["Bedroom Furniture", "Kitchen Furniture", "Office Furniture", "Custom Carpentry", "Shelving & Storage Solutions", "Outdoor Furniture", "Wooden Artifacts"] },
+  { name: "Gifts & Crafts", subcategories: ["Metal Handicrafts", "Festival Items", "Personalized Gifts", "Handmade Jewelry", "Artistic Ceramics", "Corporate Gifts"] },
+  { name: "Health & Beauty", subcategories: ["Dietary Supplements", "Veterinary Medicines", "Organic Health Products", "Beauty Enhancers", "Wellness Products"] },
+  { name: "Home Furnishings", subcategories: ["Bed Linen", "Rugs", "Placemats", "Curtains & Drapes", "Cushions & Throws", "Tableware"] },
+  { name: "Home Supplies", subcategories: ["Cleaning Liquids", "Pest Control Services", "Household Tools", "Sanitary Products", "Storage Solutions"] },
+  { name: "Industrial Machinery", subcategories: ["Chemical Machinery", "CNC Machines", "Milling Tools", "Heavy Machinery", "Hydraulic Equipment", "Packaging Machines"] },
+  { name: "Industrial Supplies", subcategories: ["Pumps", "Insulators", "Trolleys & Pallets", "Bearings", "Conveyor Belts"] },
+  { name: "Jewelry & Jewelry Designers", subcategories: ["Precious Stones", "Diamond Jewelry", "Custom Jewelry", "Gold & Silver Accessories", "Fashion Jewelry"] },
+  { name: "Mineral & Metals", subcategories: ["Mica", "Steel", "Non-Ferrous Scrap", "Aluminum", "Copper", "Rare Earth Elements"] },
+  { name: "Office Supplies", subcategories: ["Stationery", "Printer Consumables", "Office Furniture", "Paper Products", "Filing Solutions"] },
+  { name: "Packaging & Paper", subcategories: ["Bulk Bags", "Pallets", "Food Packaging", "Industrial Packaging", "Paper Products", "Sustainable Packaging"] },
+  { name: "Real Estate, Building & Construction", subcategories: ["Bricks", "Sanitary Ware", "Tiles", "Building Materials", "Cement & Concrete", "Construction Equipment"] },
+  { name: "Security Products & Services", subcategories: ["Alarms", "Safety Systems", "Surveillance Equipment", "Fire Protection Systems", "Access Control Systems"] },
+  { name: "Sports Goods & Entertainment", subcategories: ["Sporting Goods", "Exercise Accessories", "Fitness Equipment", "Gaming Consoles", "Outdoor Games"] },
+  { name: "Telecommunication", subcategories: ["Equipment", "Wi-Fi Solutions", "VOIP Systems", "Mobile Networks", "Satellite Communication"] },
+  { name: "Textiles, Yarn & Fabrics", subcategories: ["Cotton Fabrics", "Leather Materials", "Embroidery Tools", "Synthetic Fibers", "Organic Textiles"] },
+  { name: "Tools & Equipment", subcategories: ["Saw Blades", "Hydraulic Tools", "Thermometers", "Hand Tools", "Power Tools"] },
+  { name: "Tours, Travels & Hotels", subcategories: ["Tour Providers", "Bus Rentals", "Hotel Booking", "Holiday Packages", "Travel Accessories"] },
+  { name: "Toys & Games", subcategories: ["Stuffed Toys", "Video Games", "Educational Toys", "Board Games", "Outdoor Games"] },
+  { name: "Renewable Energy Equipment", subcategories: ["Solar Panels", "Wind Turbines", "Energy Storage Solutions", "Hydroelectric Equipment"] },
+  { name: "Artificial Intelligence & Automation Tools", subcategories: ["AI Software", "Robotics", "Machine Learning Tools", "AI Hardware"] },
+  { name: "Sustainable & Eco-Friendly Products", subcategories: ["Recyclable Materials", "Eco-Friendly Packaging", "Organic Clothing", "Zero-Waste Products"] },
+  { name: "Healthcare Equipment & Technology", subcategories: ["Telemedicine Devices", "Health Wearables", "Medical Devices", "Health Informatics"] },
+  { name: "E-commerce & Digital Platforms Solutions", subcategories: ["Online Marketplaces", "Payment Gateways", "E-commerce Software", "Dropshipping Platforms"] },
+  { name: "Gaming & Esports Hardware", subcategories: ["Gaming Consoles", "VR & AR Devices", "Esports Equipment", "Gaming Software"] },
+  { name: "Electric Vehicles (EVs) & Charging Solutions", subcategories: ["EV Batteries", "Charging Stations", "Electric Cars", "EV Accessories"] },
+  { name: "Drones & UAVs", subcategories: ["UAV Manufacturing", "Drone Software", "Drone Photography", "Aerial Mapping Services"] },
+  { name: "Wearable Technology", subcategories: ["Smartwatches", "Fitness Trackers", "Medical Wearables", "AR Glasses"] },
+  { name: "Logistics & Supply Chain Solutions", subcategories: ["Warehouse Automation", "Fleet Management", "Freight Forwarding", "Supply Chain Analytics"] },
+  { name: "3D Printing Equipment", subcategories: ["3D Printers", "Printing Materials", "Prototyping Services", "Custom Manufacturing"] },
+  { name: "Food Tech & Agri-Tech", subcategories: ["Vertical Farming", "Food Delivery Platforms", "Lab-Grown Meat", "Precision Agriculture"] },
+  { name: "Iron & Steel Industry", subcategories: ["Steel Production", "Iron Smelting", "Ferrous Metals", "Foundries"] },
+  { name: "Mining & Raw Materials", subcategories: ["Iron Ore", "Bauxite", "Coal Mining", "Precious Metals"] },
+  { name: "Metal Recycling", subcategories: ["Scrap Iron", "Recycled Steel", "Non-Ferrous Scrap", "Metal Processing"] },
+  { name: "Metallurgy & Metalworking", subcategories: ["Metal Forging", "Casting", "Alloy Production", "Heat Treatment"] },
+  { name: "Heavy Machinery & Mining Equipment", subcategories: ["Mining Trucks", "Excavators", "Drilling Machines", "Crushing Equipment"] },
+  { name: "Ferrous and Non-Ferrous Metals", subcategories: ["Steel", "Aluminum", "Copper", "Zinc"] },
+  { name: "Mining Safety & Environmental Solutions", subcategories: ["Mining Safety Gear", "Environmental Monitoring", "Dust Control Solutions", "Mine Rehabilitation"] },
+  { name: "Precious Metals & Mining", subcategories: ["Gold", "Silver", "Platinum", "Mining Exploration"] }
+];
+
+export const HIGH_PRIORITY_CATEGORIES = [
+  "Iron & Steel Industry",
+  "Agriculture",
+  "Electric Vehicles (EVs) & Charging Solutions",
+  "Renewable Energy Equipment",
+  "Artificial Intelligence & Automation Tools"
+];

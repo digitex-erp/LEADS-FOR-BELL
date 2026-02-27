@@ -25,8 +25,10 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
 import { chatWithGrounding } from './services/gemini';
-import { getCompanies, Company, createCompany, updateCompanyScore, supabase } from './services/supabase';
+import { getCompanies, Company, createCompany, updateCompanyScore, supabase, upsertCompany, trackEngagement } from './services/supabase';
 import { calculateLeadScore } from './services/scoring';
+import { MASTER_CATEGORIES, Category } from './constants/categories';
+import { categorizeBusiness } from './services/nlpCategorizer';
 import { 
   LineChart, 
   Line, 
@@ -147,10 +149,11 @@ const StatCard = ({ label, value, trend, icon: Icon, subtext }: { label: string,
 
 const ChatBot = () => {
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
-    { role: 'model', text: "Hello! I'm your Lead Intelligence Assistant. I can help you find businesses, analyze locations, and score leads using real-time Google Maps data. How can I help you today?" }
+    { role: 'model', text: "Hello! I'm your Lead Intelligence Assistant. I can help you find businesses, analyze locations, and score leads. I now support both Gemini and Claude. How can I help you today?" }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [model, setModel] = useState<'gemini' | 'claude'>('gemini');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,11 +171,24 @@ const ChatBot = () => {
     setLoading(true);
 
     try {
-      const response = await chatWithGrounding(userMsg, messages.map(m => ({ role: m.role, parts: [{ text: m.text }] })));
-      setMessages(prev => [...prev, { role: 'model', text: response.text || "I couldn't process that request." }]);
-    } catch (error) {
+      let responseText = "";
+      if (model === 'gemini') {
+        const response = await chatWithGrounding(userMsg, messages.map(m => ({ role: m.role, parts: [{ text: m.text }] })));
+        responseText = response.text || "I couldn't process that request.";
+      } else {
+        const response = await fetch('/api/chat/claude', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMsg, history: messages })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        responseText = data.text;
+      }
+      setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+    } catch (error: any) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to the intelligence engine." }]);
+      setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message || "Sorry, I encountered an error connecting to the intelligence engine."}` }]);
     } finally {
       setLoading(false);
     }
@@ -185,7 +201,15 @@ const ChatBot = () => {
           <div className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
           <h3 className="font-display font-bold text-sm uppercase tracking-widest">Intelligence Chat</h3>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <select 
+            value={model} 
+            onChange={(e) => setModel(e.target.value as any)}
+            className="bg-brand-dark/50 border border-brand-border rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60 focus:outline-none focus:border-brand-primary/50"
+          >
+            <option value="gemini">Gemini 2.5</option>
+            <option value="claude">Claude 3.5</option>
+          </select>
           <button className="p-2 hover:bg-white/10 rounded-lg transition-colors"><MoreVertical size={16} /></button>
         </div>
       </div>
@@ -245,6 +269,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leads, setLeads] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLead, setSelectedLead] = useState<Company | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -311,21 +337,31 @@ export default function App() {
           lead[header.trim().toLowerCase()] = values[index]?.trim();
         });
         
-        const score = calculateLeadScore(lead);
-        newLeads.push({
+        // NLP Categorization
+        const description = lead.description || lead.industry || lead.name;
+        const catResult = await categorizeBusiness(description);
+        
+        const enrichedLead = {
           ...lead,
-          lead_score: score,
+          main_category: catResult.mainCategory,
+          sub_category: catResult.subCategory,
           status: 'new',
           tags: []
+        };
+        
+        const score = calculateLeadScore(enrichedLead);
+        newLeads.push({
+          ...enrichedLead,
+          lead_score: score
         });
       }
 
       try {
         for (const lead of newLeads) {
-          await createCompany(lead);
+          await upsertCompany(lead);
         }
         fetchLeads();
-        alert(`Successfully imported ${newLeads.length} leads.`);
+        alert(`Successfully processed ${newLeads.length} leads (Upsert active).`);
       } catch (error) {
         console.error("Import error:", error);
         alert("Error importing leads. Check console for details.");
@@ -334,7 +370,9 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const displayLeads = leads.length > 0 ? leads : [];
+  const displayLeads = leads.length > 0 
+    ? leads.filter(l => selectedCategory === 'All' || l.main_category === selectedCategory) 
+    : [];
 
   return (
     <div className="flex h-screen bg-brand-dark text-white overflow-hidden">
@@ -356,6 +394,23 @@ export default function App() {
               <SidebarItem icon={Building2} label="Companies" active={activeTab === 'leads'} onClick={() => setActiveTab('leads')} />
               <SidebarItem icon={Users} label="Contacts" active={activeTab === 'contacts'} onClick={() => setActiveTab('contacts')} />
             </nav>
+          </section>
+
+          <section>
+            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Category Filter</p>
+            <div className="px-3">
+              <select 
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full bg-white/5 border border-brand-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-primary/50 text-white/70"
+              >
+                <option value="All">All Categories</option>
+                {MASTER_CATEGORIES.map(cat => (
+                  <option key={cat.name} value={cat.name}>{cat.name}</option>
+                ))}
+                <option value="Uncategorized">Uncategorized</option>
+              </select>
+            </div>
           </section>
 
           <section>
@@ -461,8 +516,8 @@ export default function App() {
                     <h3 className="font-bold text-sm">Lead Acquisition Velocity</h3>
                     <p className="text-xs text-white/40 mt-1">New companies ingested and processed over time</p>
                   </div>
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="w-full">
+                    <ResponsiveContainer width="100%" height={300} minWidth={0}>
                       <LineChart data={VELOCITY_DATA}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis 
@@ -509,8 +564,8 @@ export default function App() {
                     <h3 className="font-bold text-sm">Scoring Distribution</h3>
                     <p className="text-xs text-white/40 mt-1">Lead quality breakdown by current score</p>
                   </div>
-                  <div className="h-[300px] w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="w-full flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height={300} minWidth={0}>
                       <PieChart>
                         <Pie
                           data={DISTRIBUTION_DATA}
@@ -568,7 +623,11 @@ export default function App() {
                             </td>
                           </tr>
                         ) : displayLeads.map((lead) => (
-                          <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors group cursor-pointer">
+                          <tr 
+                            key={lead.id} 
+                            onClick={() => setSelectedLead(lead)}
+                            className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                          >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:text-brand-primary transition-colors">
@@ -653,6 +712,137 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* Lead Detail Modal */}
+      <AnimatePresence>
+        {selectedLead && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedLead(null)}
+              className="absolute inset-0 bg-brand-dark/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl glass rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-8 space-y-8">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                      <Building2 size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-display font-bold">{selectedLead.name}</h2>
+                      <p className="text-white/40 text-sm">{selectedLead.industry || 'Unknown Industry'}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedLead(null)}
+                    className="p-2 hover:bg-white/5 rounded-xl transition-colors text-white/20 hover:text-white"
+                  >
+                    <Plus size={24} className="rotate-45" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">GST Number</p>
+                    <p className="text-sm font-mono">{selectedLead.gst_number || 'Not Available'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">PAN Number (Auto-Extracted)</p>
+                    <p className="text-sm font-mono text-brand-primary">{selectedLead.pan_number || 'Processing...'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Location</p>
+                    <p className="text-sm">{selectedLead.city}, {selectedLead.state || 'India'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Status</p>
+                    <select 
+                      value={selectedLead.status}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value as any;
+                        if (supabase) {
+                          await supabase.from('companies').update({ status: newStatus }).eq('id', selectedLead.id);
+                          fetchLeads();
+                          setSelectedLead({...selectedLead, status: newStatus});
+                        }
+                      }}
+                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white focus:outline-none focus:border-brand-primary/50"
+                    >
+                      <option value="new">New</option>
+                      <option value="warm-lead">Warm Lead</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="qualified">Qualified</option>
+                      <option value="dormant-sme">Dormant SME</option>
+                      <option value="disqualified">Disqualified</option>
+                      <option value="invalid_data">Invalid Data</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Main Category</p>
+                    <p className="text-sm font-bold text-brand-primary">{selectedLead.main_category || 'Uncategorized'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Sub-Category</p>
+                    <p className="text-sm text-white/60">{selectedLead.sub_category || 'None'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Lead Score</p>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-brand-primary" style={{ width: `${selectedLead.lead_score}%` }} />
+                      </div>
+                      <span className="text-sm font-bold">{selectedLead.lead_score}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Engagements</p>
+                    <p className="text-sm font-bold text-brand-primary">{selectedLead.engagement_count || 0}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">Quick Intelligence Actions</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={async () => {
+                        await trackEngagement(selectedLead.id);
+                        window.open(`https://wa.me/?text=Hello ${selectedLead.name}, checking in regarding...`, '_blank');
+                        fetchLeads();
+                      }}
+                      className="flex items-center justify-center gap-3 p-4 glass rounded-2xl hover:bg-brand-primary/10 hover:border-brand-primary/30 transition-all group"
+                    >
+                      <Phone size={18} className="text-brand-primary group-hover:scale-110 transition-transform" />
+                      <span className="text-sm font-bold">WhatsApp Link</span>
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        await trackEngagement(selectedLead.id);
+                        if (selectedLead.gst_number) {
+                          navigator.clipboard.writeText(selectedLead.gst_number);
+                          alert('GST Number copied for verification');
+                        }
+                        fetchLeads();
+                      }}
+                      className="flex items-center justify-center gap-3 p-4 glass rounded-2xl hover:bg-brand-primary/10 hover:border-brand-primary/30 transition-all group"
+                    >
+                      <ShieldCheck size={18} className="text-brand-primary group-hover:scale-110 transition-transform" />
+                      <span className="text-sm font-bold">Verify GST</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

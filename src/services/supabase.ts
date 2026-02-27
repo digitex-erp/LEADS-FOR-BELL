@@ -18,7 +18,12 @@ export type Company = {
   pincode?: string;
   website?: string;
   lead_score: number;
-  status: 'new' | 'contacted' | 'qualified' | 'disqualified';
+  engagement_count: number;
+  last_interaction?: string;
+  pan_number?: string;
+  main_category?: string;
+  sub_category?: string;
+  status: 'new' | 'warm-lead' | 'dormant-sme' | 'contacted' | 'qualified' | 'disqualified' | 'invalid_data';
   tags: string[];
   created_at: string;
 };
@@ -68,6 +73,46 @@ export const updateCompanyScore = async (id: string, score: number) => {
   
   if (error) throw error;
   return data[0] as Company;
+};
+
+export const upsertCompany = async (company: Partial<Company>) => {
+  if (!supabase) throw new Error("Supabase client not initialized.");
+  
+  // If GST exists, we use it as the unique key for upsert
+  const { data, error } = await supabase
+    .from('companies')
+    .upsert(company, { onConflict: 'gst_number' })
+    .select();
+    
+  if (error) throw error;
+  return data[0] as Company;
+};
+
+export const trackEngagement = async (id: string) => {
+  if (!supabase) throw new Error("Supabase client not initialized.");
+  
+  // Increment engagement count and update last interaction
+  const { data, error } = await supabase.rpc('increment_engagement', { company_id: id });
+  
+  // Fallback if RPC is not defined yet
+  if (error) {
+    const { data: company } = await supabase.from('companies').select('engagement_count').eq('id', id).single();
+    const newCount = (company?.engagement_count || 0) + 1;
+    
+    const { data: updated, error: updateError } = await supabase
+      .from('companies')
+      .update({ 
+        engagement_count: newCount,
+        last_interaction: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select();
+      
+    if (updateError) throw updateError;
+    return updated[0] as Company;
+  }
+  
+  return data;
 };
 
 export const getContactsForCompany = async (companyId: string) => {

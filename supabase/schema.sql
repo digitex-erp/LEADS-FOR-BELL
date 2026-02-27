@@ -13,7 +13,12 @@ CREATE TABLE IF NOT EXISTS companies (
     pincode TEXT,
     website TEXT,
     lead_score NUMERIC DEFAULT 0,
-    status TEXT DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'qualified', 'disqualified')),
+    engagement_count INTEGER DEFAULT 0,
+    last_interaction TIMESTAMP WITH TIME ZONE,
+    pan_number TEXT,
+    main_category TEXT,
+    sub_category TEXT,
+    status TEXT DEFAULT 'new' CHECK (status IN ('new', 'warm-lead', 'dormant-sme', 'contacted', 'qualified', 'disqualified', 'invalid_data')),
     tags TEXT[] DEFAULT '{}',
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -51,3 +56,14 @@ ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for authenticated users" ON companies FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated users" ON contacts FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated users" ON activity_logs FOR ALL USING (true);
+
+-- RPC Functions
+CREATE OR REPLACE FUNCTION increment_engagement(company_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE companies
+    SET engagement_count = engagement_count + 1,
+        last_interaction = NOW()
+    WHERE id = company_id;
+END;
+$$ LANGUAGE plpgsql;
