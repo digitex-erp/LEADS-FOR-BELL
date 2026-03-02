@@ -19,23 +19,14 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'vendor': [
-              'react', 
-              'react-dom', 
-              'recharts', 
-              'lucide-react', 
-              'motion',
-              '@google/genai',
-              '@anthropic-ai/sdk',
-              '@supabase/supabase-js'
-            ]
+            'vendor-react': ['react', 'react-dom', 'motion'],
+            'vendor-ui': ['lucide-react', 'recharts'],
+            'vendor-ai': ['@google/genai', '@anthropic-ai/sdk', '@supabase/supabase-js']
           }
         }
       }
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true' ? {
         clientPort: 443
       } : false,
