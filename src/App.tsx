@@ -39,6 +39,7 @@ import { SuppliersPage } from './pages/suppliers/page';
 import { SettingsPage } from './pages/Settings';
 import { SimulationButton } from './components/SimulationButton';
 import { SuccessCard } from './components/SuccessCard';
+import { JoinSupplierModal } from './components/JoinSupplierModal';
 import { 
   LineChart, 
   Line, 
@@ -55,6 +56,24 @@ import {
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// --- Mock Data for Charts ---
+const VELOCITY_DATA = [
+  { name: 'Jan 01', value: 120, value2: 80 },
+  { name: 'Jan 08', value: 150, value2: 100 },
+  { name: 'Jan 15', value: 280, value2: 210 },
+  { name: 'Jan 22', value: 250, value2: 190 },
+  { name: 'Jan 29', value: 320, value2: 240 },
+  { name: 'Feb 05', value: 410, value2: 350 },
+  { name: 'Feb 12', value: 380, value2: 320 },
+];
+
+const DISTRIBUTION_DATA = [
+  { name: 'High', value: 400, color: '#00FF00' },
+  { name: 'Medium', value: 300, color: '#3b82f6' },
+  { name: 'Low', value: 200, color: '#a855f7' },
+  { name: 'New', value: 100, color: '#f59e0b' },
+];
 
 // --- Components ---
 
@@ -323,7 +342,10 @@ export default function App() {
   const [isProcessingImport, setIsProcessingImport] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationSuccess, setSimulationSuccess] = useState<{ category: string, count: number } | null>(null);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
   useEffect(() => {
     try {
@@ -392,8 +414,61 @@ export default function App() {
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImport(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n');
+        const headers = lines[0].split(',');
+        
+        const previewLeads: Partial<Company>[] = [];
+        const summary: Record<string, number> = {};
+        
+        const processLimit = Math.min(lines.length, 51);
+        
+        for (let i = 1; i < processLimit; i++) {
+          if (!lines[i].trim()) continue;
+          const values = lines[i].split(',');
+          const lead: any = {};
+          headers.forEach((header, index) => {
+            lead[header.trim().toLowerCase()] = values[index]?.trim();
+          });
+          
+          const description = lead.description || lead.industry || lead.name;
+          const catResult = await categorizeBusiness(description);
+          
+          const enrichedLead = {
+            ...lead,
+            main_category: catResult.mainCategory,
+            sub_category: catResult.subCategory,
+            status: 'new',
+            tags: []
+          };
+          
+          summary[catResult.mainCategory] = (summary[catResult.mainCategory] || 0) + 1;
+          previewLeads.push(enrichedLead);
+        }
+
+        setImportPreview({ leads: previewLeads, summary });
+        setActiveTab('import');
+      } catch (error) {
+        console.error("Import preview error:", error);
+        alert("Error generating import preview.");
+      } finally {
+        setIsProcessingImport(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const confirmImport = async () => {
     if (!importPreview) return;
+    
     setIsProcessingImport(true);
     try {
       for (const lead of importPreview.leads) {
@@ -403,8 +478,10 @@ export default function App() {
       fetchLeads();
       setImportPreview(null);
       setActiveTab('leads');
+      alert(`Successfully imported ${importPreview.leads.length} leads.`);
     } catch (error) {
       console.error("Final import error:", error);
+      alert("Error during final import.");
     } finally {
       setIsProcessingImport(false);
     }
@@ -456,6 +533,17 @@ export default function App() {
     );
   }
 
+  if (initError) {
+    return (
+      <div className="h-screen bg-brand-dark flex flex-col items-center justify-center text-white p-8 text-center">
+        <AlertCircle size={48} className="text-rose-500 mb-4" />
+        <h2 className="text-xl font-display font-bold">Intelligence Shield Active</h2>
+        <p className="text-white/40 text-sm mt-2 max-w-md">{initError}</p>
+        <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-white/10 rounded-xl text-sm font-bold">Restart Engine</button>
+      </div>
+    );
+  }
+
   return (
     <DashboardLayout 
       activeTab={activeTab} 
@@ -475,33 +563,67 @@ export default function App() {
                 <span>All Categories</span>
                 <span className="text-brand-primary font-bold">{leads.length}</span>
               </button>
-              {MASTER_CATEGORIES.slice(0, 5).map(cat => (
-                <button 
-                  key={cat.name} 
-                  onClick={() => { updateCategoryParam(cat.name); setActiveTab('leads'); }}
-                  className="w-full flex items-center justify-between text-[10px] hover:bg-white/5 p-1 rounded transition-colors group text-left"
-                >
-                  <span className="text-white/40 truncate pr-2 group-hover:text-white">{cat.name}</span>
-                  <span className="text-brand-primary font-bold">{leads.filter(l => l.main_category === cat.name).length}</span>
-                </button>
-              ))}
+              {MASTER_CATEGORIES
+                .map(cat => ({
+                  name: cat.name,
+                  count: leads.filter(l => l.main_category === cat.name).length
+                }))
+                .filter(c => c.count > 0)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5)
+                .map(cat => (
+                  <button 
+                    key={cat.name} 
+                    onClick={() => {
+                      updateCategoryParam(cat.name);
+                      setActiveTab('leads');
+                      logActivity('category_interest', `Clicked heatmap: ${cat.name}`);
+                    }}
+                    className="w-full flex items-center justify-between text-[10px] hover:bg-white/5 p-1 rounded transition-colors group text-left"
+                  >
+                    <span className="text-white/40 truncate pr-2 group-hover:text-white">{cat.name}</span>
+                    <span className="text-brand-primary font-bold">{cat.count}</span>
+                  </button>
+                ))
+              }
             </div>
           </section>
 
-          <section>
-            <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Market Simulation</p>
-            <div className="px-3 space-y-2">
-              <select onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-brand-primary focus:outline-none">
-                <option value="All">Select Category...</option>
-                {MASTER_CATEGORIES.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
-              </select>
-              <SimulationButton category={selectedCategory === 'All' ? 'Agriculture' : selectedCategory} triggerSimulate={handleSimulate} className="w-full" />
-            </div>
-          </section>
+          {isAdmin && (
+            <section>
+              <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Market Simulation</p>
+              <div className="px-3 space-y-2">
+                <select 
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  value={selectedCategory === 'All' ? '' : selectedCategory}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-brand-primary focus:outline-none"
+                >
+                  <option value="">Select Category...</option>
+                  {MASTER_CATEGORIES.map(cat => (
+                    <option key={cat.name} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+                <SimulationButton 
+                  category={selectedCategory === 'All' ? '' : selectedCategory} 
+                  triggerSimulate={handleSimulate}
+                  className="w-full"
+                />
+              </div>
+            </section>
+          )}
         </>
       }
     >
       <div className="max-w-7xl mx-auto">
+        <JoinSupplierModal 
+          isOpen={isJoinModalOpen} 
+          onClose={() => setIsJoinModalOpen(false)} 
+          onSuccess={(cat, count) => {
+            setSimulationSuccess({ category: cat, count });
+            fetchLeads();
+            setTimeout(() => setSimulationSuccess(null), 10000);
+          }}
+        />
         <AnimatePresence>
           {simulationSuccess && (
             <SuccessCard 
@@ -518,12 +640,38 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
                 <div className="flex justify-between items-end">
-                  <h2 className="text-3xl font-display font-bold">Intelligence Overview</h2>
+                  <div>
+                    <h2 className="text-3xl font-display font-bold">Intelligence Overview</h2>
+                    <p className="text-white/40 text-sm mt-1">Real-time market liquidity and lead acquisition</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsJoinModalOpen(true)}
+                    className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,0,0.2)]"
+                  >
+                    <Plus size={18} strokeWidth={3} />
+                    Join as Supplier
+                  </button>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <StatCard label="Total Companies" value={leads.length.toLocaleString()} trend={`+${leads.length}`} subtext="lifetime leads" icon={Building2} />
-                  <StatCard label="Qualified Leads" value={leads.filter(l => l.lead_score > 70).length.toString()} trend="+12%" icon={ShieldCheck} />
+                  <StatCard 
+                    label="Total Companies" 
+                    value={leads.length.toLocaleString()} 
+                    trend={`+${leads.filter(l => {
+                      const d = new Date(l.created_at || '');
+                      const now = new Date();
+                      return d.getTime() > now.getTime() - 24 * 60 * 60 * 1000;
+                    }).length}`} 
+                    subtext="last 24 hours" 
+                    icon={Building2} 
+                  />
+                  <StatCard 
+                    label="Qualified Leads" 
+                    value={leads.filter(l => l.status === 'qualified').length.toString()} 
+                    trend="+12%" 
+                    subtext="vs last month" 
+                    icon={ShieldCheck} 
+                  />
                 </div>
 
                 <div className="glass p-6 rounded-2xl flex flex-col gap-6">
@@ -532,9 +680,12 @@ export default function App() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={getVelocityData()}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                        <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0A0A0A', borderRadius: '12px' }} />
+                        <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                        <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                          itemStyle={{ color: '#00FF00' }}
+                        />
                         <Line type="monotone" dataKey="value" stroke="#00FF00" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -549,8 +700,16 @@ export default function App() {
                   <div className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={getDistributionData()} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                          {getDistributionData().map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                        <Pie
+                          data={getDistributionData()}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {getDistributionData().map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
                         </Pie>
                         <Tooltip />
                       </PieChart>
@@ -562,19 +721,39 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'chat' && <div className="h-[calc(100vh-160px)]"><ChatBot /></div>}
+        {activeTab === 'chat' && (
+          <div className="h-[calc(100vh-160px)]">
+            <ChatBot />
+          </div>
+        )}
+
         {activeTab === 'suppliers' && <SuppliersPage />}
+
         {activeTab === 'settings' && <SettingsPage />}
-        {activeTab === 'categories' && <div className="h-[calc(100vh-200px)] flex flex-col gap-6"><h2 className="text-xl font-display font-bold">Category Market Map</h2><MarketMap /></div>}
+
+        {activeTab === 'categories' && (
+          <div className="h-[calc(100vh-200px)] flex flex-col gap-6">
+            <h2 className="text-xl font-display font-bold">Category Market Map</h2>
+            <MarketMap />
+          </div>
+        )}
 
         {activeTab === 'leads' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-display font-bold">Full Lead Database</h2>
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-display font-bold">Full Lead Database</h2>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 w-64">
+                <Search size={14} className="text-white/30" />
+                <input placeholder="Filter by name..." className="bg-transparent border-none text-xs focus:outline-none w-full text-white" />
+              </div>
+            </div>
+            
             <div className="glass rounded-2xl overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-white/5 border-b border-brand-border">
                   <tr>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Company</th>
+                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Industry</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Score</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Status</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40"></th>
@@ -583,14 +762,44 @@ export default function App() {
                 <tbody className="divide-y divide-brand-border">
                   {displayLeads.map((lead) => (
                     <tr key={lead.id} onClick={() => setSelectedLead(lead)} className="hover:bg-white/[0.02] transition-colors group cursor-pointer">
-                      <td className="px-6 py-4"><p className="text-sm font-semibold">{lead.name}</p><p className="text-[10px] text-white/40">{lead.industry}</p></td>
-                      <td className="px-6 py-4 text-xs font-bold text-brand-primary">{lead.lead_score}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Building2 size={16} className="text-white/40 group-hover:text-brand-primary" />
+                          <p className="text-sm font-semibold">{lead.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-white/60">{lead.industry}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1 w-12 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-brand-primary" style={{ width: `${lead.lead_score}%` }} />
+                          </div>
+                          <span className="text-xs font-bold">{lead.lead_score}</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">{lead.status}</td>
                       <td className="px-6 py-4 text-right"><ChevronRight size={18} className="text-white/20" /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'import' && (
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-display font-bold">Bulk Import Validator</h2>
+              <div className="flex gap-4">
+                <button onClick={() => setImportPreview(null)} className="px-6 py-2 glass rounded-xl text-sm font-bold">Cancel</button>
+                <button onClick={confirmImport} disabled={isProcessingImport} className="px-6 py-2 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold">Confirm & Upsert</button>
+              </div>
+            </div>
+            <div className="glass rounded-3xl p-20 text-center border-dashed border-2 border-white/10">
+              <Plus size={48} className="mx-auto mb-4 text-white/10" />
+              <button onClick={() => fileInputRef.current?.click()} className="px-8 py-3 bg-white/10 rounded-xl text-sm font-bold">Select CSV File</button>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".csv" />
             </div>
           </div>
         )}
@@ -604,7 +813,10 @@ export default function App() {
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary"><Building2 size={24} /></div>
-                  <div><h2 className="text-2xl font-display font-bold">{selectedLead.name}</h2><p className="text-white/40 text-sm">{selectedLead.industry}</p></div>
+                  <div>
+                    <h2 className="text-2xl font-display font-bold">{selectedLead.name}</h2>
+                    <p className="text-white/40 text-sm">{selectedLead.industry}</p>
+                  </div>
                 </div>
                 <button onClick={() => setSelectedLead(null)} className="p-2 text-white/20 hover:text-white"><Plus size={24} className="rotate-45" /></button>
               </div>
