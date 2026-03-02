@@ -743,6 +743,7 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
+                </div>
             )}
 
           {activeTab === 'chat' && (
@@ -932,6 +933,7 @@ export default function App() {
               )}
             </div>
           )}
+        </div>
       </DashboardLayout>
 
       {/* Lead Detail Modal */}
