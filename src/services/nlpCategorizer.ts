@@ -4,7 +4,7 @@ import { MASTER_CATEGORIES } from "../constants/categories";
 // Safe AI Initialization
 const getAI = () => {
   const key = import.meta.env.VITE_GEMINI_API_KEY || "";
-  if (!key || key === "YOUR_GEMINI_API_KEY") return null;
+  if (!key || key.includes("YOUR_GEMINI_API_KEY") || key.length < 20) return null;
   try {
     return new GoogleGenAI(key);
   } catch (e) {

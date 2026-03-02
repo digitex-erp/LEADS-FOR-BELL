@@ -344,15 +344,19 @@ export default function App() {
 
   useEffect(() => {
     try {
-      // Global Safety Check: Prevent Black Screen
-      const checkEnv = () => {
-        const key = import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX;
-        if (!key || key.includes("YOUR_")) {
-          console.warn("🚀 AI Keys missing. Site running in Safety Mode.");
-          setIsDemoMode(true);
-        }
-      };
-      checkEnv();
+      // Global Safety Check: Toggle Demo Mode based on ANY valid key
+      const hasAnyKey = !!(
+        (import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX && !import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX.includes("YOUR_")) ||
+        (import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK && !import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK.includes("YOUR_")) ||
+        (import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY.includes("YOUR_"))
+      );
+
+      if (!hasAnyKey) {
+        console.warn("🚀 Bell24h: AI Keys missing. Site running in Demo Mode.");
+        setIsDemoMode(true);
+      } else {
+        setIsDemoMode(false); // Clear demo mode if keys are found
+      }
 
       // Listen to URL search params
       const params = new URLSearchParams(window.location.search);
@@ -379,6 +383,9 @@ export default function App() {
       });
       alert(`🚀 RFQ Saved Successfully: ${rfqData.title}`);
       logActivity('rfq_save', `Saved voice RFQ: ${rfqData.title}`);
+      
+      // Auto-refetch to update stats if counts are based on database
+      await fetchLeads();
     } catch (error: any) {
       console.error("❌ Failed to save RFQ:", error);
       alert(`Failed to save RFQ: ${error.message || 'Unknown error'}`);
