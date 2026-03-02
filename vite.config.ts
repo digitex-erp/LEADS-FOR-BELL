@@ -19,7 +19,9 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'motion'],
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-framer': ['motion'],
+            'vendor-lucide': ['lucide-react'],
             'vendor-recharts': ['recharts'],
             'vendor-ai': ['@google/genai', '@anthropic-ai/sdk']
           }
