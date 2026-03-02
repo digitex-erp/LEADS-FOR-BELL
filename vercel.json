@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/v1/leads/verified",
+      "destination": "/api/v1/verified-leads.ts"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
     },
