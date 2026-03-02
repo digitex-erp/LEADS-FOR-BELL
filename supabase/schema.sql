@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS companies (
     state TEXT,
     pincode TEXT,
     website TEXT,
+    email TEXT,
+    phone TEXT,
     lead_score NUMERIC DEFAULT 0,
     engagement_count INTEGER DEFAULT 0,
     last_interaction TIMESTAMP WITH TIME ZONE,

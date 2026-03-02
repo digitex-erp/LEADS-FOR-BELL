@@ -36,6 +36,7 @@ import { categorizeBusiness } from './services/nlpCategorizer';
 import { simulateLeads } from './services/simulation';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { SuppliersPage } from './pages/suppliers/page';
+import { SettingsPage } from './pages/Settings';
 import { SimulationButton } from './components/SimulationButton';
 import { SuccessCard } from './components/SuccessCard';
 import { 
@@ -700,6 +701,8 @@ export default function App() {
         )}
 
         {activeTab === 'suppliers' && <SuppliersPage />}
+
+        {activeTab === 'settings' && <SettingsPage />}
 
         {activeTab === 'categories' && (
           <div className="h-[calc(100vh-200px)] flex flex-col gap-6">

@@ -19,6 +19,8 @@ export type Company = {
   state?: string;
   pincode?: string;
   website?: string;
+  email?: string;
+  phone?: string;
   lead_score: number;
   engagement_count: number;
   last_interaction?: string;
@@ -28,6 +30,7 @@ export type Company = {
   status: 'new' | 'warm-lead' | 'dormant-sme' | 'contacted' | 'qualified' | 'disqualified' | 'invalid_data';
   tags: string[];
   created_at: string;
+  metadata?: any;
 };
 
 export type RFQ = {
