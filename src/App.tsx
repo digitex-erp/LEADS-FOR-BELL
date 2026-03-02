@@ -30,7 +30,9 @@ import { calculateLeadScore } from './services/scoring';
 import { MASTER_CATEGORIES, Category } from './constants/categories';
 import { categorizeBusiness } from './services/nlpCategorizer';
 import { simulateLeads } from './services/simulation';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './components/DashboardLayout';
+import SuppliersPage from './pages/suppliers/page';
 import { 
   LineChart, 
   Line, 
@@ -281,6 +283,16 @@ const ChatBot = () => {
 // --- Main App ---
 
 export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/admin/leads" replace />} />
+      <Route path="/admin/leads" element={<InternalLeadDashboard />} />
+      <Route path="/suppliers" element={<SuppliersPage />} />
+    </Routes>
+  );
+}
+
+function InternalLeadDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leads, setLeads] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -439,9 +451,10 @@ export default function App() {
   }
 
   return (
-    <DashboardLayout 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab}
+    <>
+      <DashboardLayout 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
       sidebarContent={
         <>
           <section>
@@ -607,95 +620,99 @@ export default function App() {
                 <MarketMap />
               </div>
             </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-display font-bold">Recent Intelligence</h2>
+                <button className="text-xs font-semibold text-brand-primary hover:underline" onClick={() => setActiveTab('leads')}>View All</button>
+              </div>
+
+              <div className="glass rounded-2xl overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white/5 border-b border-brand-border">
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Company</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Industry</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Score</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-white/20">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                            Loading intelligence...
+                          </div>
+                        </td>
+                      </tr>
+                    ) : displayLeads.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-white/20">
+                          No leads found. Start by importing or chatting.
+                        </td>
+                      </tr>
+                    ) : displayLeads.map((lead) => (
+                      <tr 
+                        key={lead.id} 
+                        onClick={() => setSelectedLead(lead)}
+                        className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:text-brand-primary transition-colors">
+                              <Building2 size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">{lead.name}</p>
+                              <p className="text-[10px] text-white/30 flex items-center gap-1">
+                                <MapPin size={10} /> {lead.city}, {lead.state || 'IN'}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs text-white/60">{lead.industry || 'N/A'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 w-16 bg-white/5 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${lead.lead_score}%` }}
+                                className={cn(
+                                  "h-full rounded-full",
+                                  lead.lead_score > 80 ? "bg-brand-primary" : lead.lead_score > 50 ? "bg-amber-400" : "bg-rose-500"
+                                )}
+                              />
+                            </div>
+                            <span className="text-xs font-bold">{lead.lead_score}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md",
+                            lead.status === 'qualified' ? "bg-brand-primary/10 text-brand-primary" : 
+                            lead.status === 'new' ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
+                          )}>
+                            {lead.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button className="p-2 text-white/20 hover:text-white transition-colors">
+                            <ChevronRight size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
-
-                  <div className="glass rounded-2xl overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-white/5 border-b border-brand-border">
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Company</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Industry</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Score</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Status</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-brand-border">
-                        {loading ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-white/20">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
-                                Loading intelligence...
-                              </div>
-                            </td>
-                          </tr>
-                        ) : displayLeads.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-white/20">
-                              No leads found. Start by importing or chatting.
-                            </td>
-                          </tr>
-                        ) : displayLeads.map((lead) => (
-                          <tr 
-                            key={lead.id} 
-                            onClick={() => setSelectedLead(lead)}
-                            className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:text-brand-primary transition-colors">
-                                  <Building2 size={16} />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold">{lead.name}</p>
-                                  <p className="text-[10px] text-white/30 flex items-center gap-1">
-                                    <MapPin size={10} /> {lead.city}, {lead.state || 'IN'}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="text-xs text-white/60">{lead.industry || 'N/A'}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 w-16 bg-white/5 rounded-full overflow-hidden">
-                                  <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${lead.lead_score}%` }}
-                                    className={cn(
-                                      "h-full rounded-full",
-                                      lead.lead_score > 80 ? "bg-brand-primary" : lead.lead_score > 50 ? "bg-amber-400" : "bg-rose-500"
-                                    )}
-                                  />
-                                </div>
-                                <span className="text-xs font-bold">{lead.lead_score}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={cn(
-                                "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md",
-                                lead.status === 'qualified' ? "bg-brand-primary/10 text-brand-primary" : 
-                                lead.status === 'new' ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
-                              )}>
-                                {lead.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button className="p-2 text-white/20 hover:text-white transition-colors">
-                                <ChevronRight size={18} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
 
           {activeTab === 'chat' && (
             <div className="h-[calc(100vh-160px)]">
@@ -964,6 +981,6 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
