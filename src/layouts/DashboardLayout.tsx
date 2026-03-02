@@ -11,9 +11,11 @@ import {
   Database,
   LayoutDashboard,
   PieChart,
-  Layers
+  Layers,
+  Bell
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { LiveTicker } from '../components/LiveTicker';
 
 interface SidebarItemProps {
   icon: any;
@@ -46,7 +48,7 @@ export const DashboardLayout = ({ activeTab, setActiveTab, children, sidebarCont
   return (
     <div className="flex h-screen bg-brand-dark text-white overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-brand-border flex flex-col p-4 gap-6 bg-brand-dark">
+      <aside className="w-64 border-r border-brand-border flex flex-col p-4 gap-6 bg-brand-dark z-20">
         <div className="flex items-center gap-3 px-2 mb-4">
           <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center text-brand-dark shadow-[0_0_15px_rgba(0,255,0,0.3)]">
             <TrendingUp size={20} strokeWidth={2.5} />
@@ -84,10 +86,31 @@ export const DashboardLayout = ({ activeTab, setActiveTab, children, sidebarCont
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-brand-dark/50 p-8 scrollbar-hide">
-        {children}
-      </main>
+      {/* Main Container */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,255,0,0.02),transparent)] pointer-events-none" />
+        
+        {/* Header */}
+        <header className="h-16 border-b border-brand-border bg-brand-dark/30 backdrop-blur-md flex items-center justify-between px-8 z-10">
+          <LiveTicker />
+          <div className="flex items-center gap-4">
+            <button className="p-2 hover:bg-white/5 rounded-xl transition-colors relative">
+              <Bell size={20} className="text-white/40" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-brand-primary rounded-full border-2 border-brand-dark" />
+            </button>
+            <div className="h-8 w-[1px] bg-brand-border mx-2" />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-primary/20 to-brand-primary/40 border border-brand-primary/30" />
+              <span className="text-xs font-bold">Admin Node 01</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto bg-brand-dark/50 p-8 scrollbar-hide">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };

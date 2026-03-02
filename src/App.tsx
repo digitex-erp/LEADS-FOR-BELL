@@ -33,6 +33,7 @@ import { simulateLeads } from './services/simulation';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { SuppliersPage } from './pages/suppliers/page';
 import { SimulationButton } from './components/SimulationButton';
+import { SuccessCard } from './components/SuccessCard';
 import { 
   LineChart, 
   Line, 
@@ -539,28 +540,12 @@ export default function App() {
       <div className="max-w-7xl mx-auto">
         <AnimatePresence>
           {simulationSuccess && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mb-8 p-6 glass border-brand-primary/30 bg-brand-primary/5 rounded-2xl flex items-center justify-between group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary animate-bounce">
-                  <TrendingUp size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-display font-bold text-white">🚀 {simulationSuccess.count} New Leads Injected into {simulationSuccess.category}!</h3>
-                  <p className="text-white/40 text-sm">Total Liquidity: <span className="text-brand-primary font-bold">{leads.filter(l => l.main_category === simulationSuccess.category).length}</span> Leads in this category</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSimulationSuccess(null)}
-                className="p-2 hover:bg-white/5 rounded-lg text-white/20 hover:text-white transition-colors"
-              >
-                <Plus size={20} className="rotate-45" />
-              </button>
-            </motion.div>
+            <SuccessCard 
+              category={simulationSuccess.category}
+              count={simulationSuccess.count}
+              totalInCategory={leads.filter(l => l.main_category === simulationSuccess.category).length}
+              onClose={() => setSimulationSuccess(null)}
+            />
           )}
         </AnimatePresence>
         {!supabase && (
@@ -758,8 +743,6 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-              </div>
             )}
 
           {activeTab === 'chat' && (
@@ -949,7 +932,6 @@ export default function App() {
               )}
             </div>
           )}
-        </div>
       </DashboardLayout>
 
       {/* Lead Detail Modal */}
