@@ -13,6 +13,14 @@ function generateUniqueGST(): string {
   return `27${pan}${randomSuffix}Z${Math.floor(Math.random() * 9)}`;
 }
 
+function generateCleanMobile(): string {
+  const segments = ["7", "8", "9"];
+  const firstDigit = segments[Math.floor(Math.random() * segments.length)];
+  let rest = "";
+  for (let i = 0; i < 9; i++) rest += Math.floor(Math.random() * 10).toString();
+  return `+91${firstDigit}${rest}`;
+}
+
 export async function simulateLeads(categoryName: string, count: number = 10): Promise<void> {
   const category = MASTER_CATEGORIES.find(c => c.name === categoryName);
   const dictionaryLeads = INDUSTRY_DATA[categoryName];
@@ -30,28 +38,29 @@ export async function simulateLeads(categoryName: string, count: number = 10): P
         city: mock.city,
         state: mock.state,
         gst_number: generateUniqueGST(),
-        email: `procurement@${mock.name.toLowerCase().replace(/\s+/g, '')}-${uniqueId.toLowerCase()}.in`,
-        phone: `+91 ${9100000000 + Math.floor(Math.random() * 899999999)}`,
+        email: `procurement@${mock.name.toLowerCase().replace(/\s+/g, '')}.in`,
+        phone: generateCleanMobile(),
         status: 'new',
         industry: categoryName,
         lead_score: mock.lead_score,
-        tags: ['Verified', 'High Liquidity']
+        tags: ['Verified', 'Direct Feeder'],
+        is_approved: false
       };
     } else {
-      const name = `Industrial Node ${uniqueId}`;
       lead = {
-        name,
+        name: `Industrial Node ${uniqueId}`,
         main_category: categoryName,
         sub_category: 'General',
         city: 'Mumbai',
         state: 'Maharashtra',
         gst_number: generateUniqueGST(),
         email: `contact@node-${uniqueId.toLowerCase()}.in`,
-        phone: `+91 ${8800000000 + Math.floor(Math.random() * 999999999)}`,
+        phone: generateCleanMobile(),
         status: 'new',
         industry: categoryName,
         lead_score: 65,
-        tags: ['Simulated']
+        tags: ['Simulated'],
+        is_approved: false
       };
     }
 
