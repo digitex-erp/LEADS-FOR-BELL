@@ -23,6 +23,34 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // --- B2B Handshake API ---
+  // Securely exposes approved leads to the main bell24h.com site
+  app.get("/api/v1/leads/verified", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const internalKey = process.env.VITE_INTERNAL_FEED_KEY;
+
+    if (!internalKey || apiKey !== internalKey) {
+      console.error("â Unauthorized API Access Attempt");
+      return res.status(401).json({ error: "Unauthorized. Valid x-api-key header required." });
+    }
+
+    try {
+      // In a real scenario, we'd fetch from Supabase here
+      // For this bridge implementation, we log the handshake
+      console.log("â B2B Handshake: Verified leads requested by Main Site");
+      
+      // Mocking the data flow for the bridge verification
+      // The actual Main Site will use this to suck in data
+      res.json({
+        factory: "Bell24h Lead Factory [INTERNAL]",
+        status: "Live",
+        note: "Filter companies table where is_approved = true"
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/simulate", async (req, res) => {
     const { category } = req.body;
     
