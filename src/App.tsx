@@ -658,96 +658,9 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
+          )}
 
-                  <div className="glass rounded-2xl overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-white/5 border-b border-brand-border">
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Company</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Industry</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Score</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Status</th>
-                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-brand-border">
-                        {loading ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-white/20">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
-                                Loading intelligence...
-                              </div>
-                            </td>
-                          </tr>
-                        ) : displayLeads.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-white/20">
-                              No leads found. Start by importing or chatting.
-                            </td>
-                          </tr>
-                        ) : displayLeads.map((lead) => (
-                          <tr 
-                            key={lead.id} 
-                            onClick={() => setSelectedLead(lead)}
-                            className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:text-brand-primary transition-colors">
-                                  <Building2 size={16} />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold">{lead.name}</p>
-                                  <p className="text-[10px] text-white/30 flex items-center gap-1">
-                                    <MapPin size={10} /> {lead.city}, {lead.state || 'IN'}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="text-xs text-white/60">{lead.industry || 'N/A'}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 w-16 bg-white/5 rounded-full overflow-hidden">
-                                  <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${lead.lead_score}%` }}
-                                    className={cn(
-                                      "h-full rounded-full",
-                                      lead.lead_score > 80 ? "bg-brand-primary" : lead.lead_score > 50 ? "bg-amber-400" : "bg-rose-500"
-                                    )}
-                                  />
-                                </div>
-                                <span className="text-xs font-bold">{lead.lead_score}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={cn(
-                                "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md",
-                                lead.status === 'qualified' ? "bg-brand-primary/10 text-brand-primary" : 
-                                lead.status === 'new' ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
-                              )}>
-                                {lead.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button className="p-2 text-white/20 hover:text-white transition-colors">
-                                <ChevronRight size={18} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-            )}
-
-          {activeTab === 'chat' && (
-            <div className="h-[calc(100vh-160px)]">
+          {activeTab === 'chat' && (            <div className="h-[calc(100vh-160px)]">
               <ChatBot />
             </div>
           )}
@@ -819,11 +732,102 @@ export default function App() {
           )}
 
           {activeTab === 'leads' && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-display font-bold">Full Lead Database</h2>
-              <div className="glass rounded-2xl p-12 text-center text-white/20">
-                <Database size={48} className="mx-auto mb-4 opacity-10" />
-                <p>Lead management module active. Filter and export controls available.</p>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-display font-bold">Full Lead Database</h2>
+                <div className="flex gap-2">
+                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 w-64">
+                    <Search size={14} className="text-white/30" />
+                    <input 
+                      placeholder="Filter by name..." 
+                      className="bg-transparent border-none text-xs focus:outline-none w-full placeholder:text-white/20"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="glass rounded-2xl overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white/5 border-b border-brand-border">
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Company</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Industry</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Score</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white/40"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-white/20">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                            Loading intelligence...
+                          </div>
+                        </td>
+                      </tr>
+                    ) : displayLeads.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-white/20">
+                          No leads found. Start by importing or chatting.
+                        </td>
+                      </tr>
+                    ) : displayLeads.map((lead) => (
+                      <tr 
+                        key={lead.id} 
+                        onClick={() => setSelectedLead(lead)}
+                        className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 group-hover:text-brand-primary transition-colors">
+                              <Building2 size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">{lead.name}</p>
+                              <p className="text-[10px] text-white/30 flex items-center gap-1">
+                                <MapPin size={10} /> {lead.city}, {lead.state || 'IN'}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs text-white/60">{lead.industry || 'N/A'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 w-16 bg-white/5 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${lead.lead_score}%` }}
+                                className={cn(
+                                  "h-full rounded-full",
+                                  lead.lead_score > 80 ? "bg-brand-primary" : lead.lead_score > 50 ? "bg-amber-400" : "bg-rose-500"
+                                )}
+                              />
+                            </div>
+                            <span className="text-xs font-bold">{lead.lead_score}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md",
+                            lead.status === 'qualified' ? "bg-brand-primary/10 text-brand-primary" : 
+                            lead.status === 'new' ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
+                          )}>
+                            {lead.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button className="p-2 text-white/20 hover:text-white transition-colors">
+                            <ChevronRight size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -934,138 +938,137 @@ export default function App() {
             </div>
           )}
         </div>
-      </DashboardLayout>
 
-      {/* Lead Detail Modal */}
-      <AnimatePresence>
-        {selectedLead && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedLead(null)}
-              className="absolute inset-0 bg-brand-dark/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl glass rounded-3xl overflow-hidden shadow-2xl"
-            >
-              <div className="p-8 space-y-8">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
-                      <Building2 size={24} />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-display font-bold">{selectedLead.name}</h2>
-                      <p className="text-white/40 text-sm">{selectedLead.industry || 'Unknown Industry'}</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedLead(null)}
-                    className="p-2 hover:bg-white/5 rounded-xl transition-colors text-white/20 hover:text-white"
-                  >
-                    <Plus size={24} className="rotate-45" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">GST Number</p>
-                    <p className="text-sm font-mono">{selectedLead.gst_number || 'Not Available'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">PAN Number (Auto-Extracted)</p>
-                    <p className="text-sm font-mono text-brand-primary">{selectedLead.pan_number || 'Processing...'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Location</p>
-                    <p className="text-sm">{selectedLead.city}, {selectedLead.state || 'India'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Status</p>
-                    <select 
-                      value={selectedLead.status}
-                      onChange={async (e) => {
-                        const newStatus = e.target.value as any;
-                        if (supabase) {
-                          await supabase.from('companies').update({ status: newStatus }).eq('id', selectedLead.id);
-                          fetchLeads();
-                          setSelectedLead({...selectedLead, status: newStatus});
-                        }
-                      }}
-                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white focus:outline-none focus:border-brand-primary/50"
-                    >
-                      <option value="new">New</option>
-                      <option value="warm-lead">Warm Lead</option>
-                      <option value="contacted">Contacted</option>
-                      <option value="qualified">Qualified</option>
-                      <option value="dormant-sme">Dormant SME</option>
-                      <option value="disqualified">Disqualified</option>
-                      <option value="invalid_data">Invalid Data</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Main Category</p>
-                    <p className="text-sm font-bold text-brand-primary">{selectedLead.main_category || 'Uncategorized'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Sub-Category</p>
-                    <p className="text-sm text-white/60">{selectedLead.sub_category || 'None'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Lead Score</p>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-brand-primary" style={{ width: `${selectedLead.lead_score}%` }} />
+        {/* Lead Detail Modal */}
+        <AnimatePresence>
+          {selectedLead && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedLead(null)}
+                className="absolute inset-0 bg-brand-dark/80 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl glass rounded-3xl overflow-hidden shadow-2xl"
+              >
+                <div className="p-8 space-y-8">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                        <Building2 size={24} />
                       </div>
-                      <span className="text-sm font-bold">{selectedLead.lead_score}</span>
+                      <div>
+                        <h2 className="text-2xl font-display font-bold">{selectedLead.name}</h2>
+                        <p className="text-white/40 text-sm">{selectedLead.industry || 'Unknown Industry'}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedLead(null)}
+                      className="p-2 hover:bg-white/5 rounded-xl transition-colors text-white/20 hover:text-white"
+                    >
+                      <Plus size={24} className="rotate-45" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">GST Number</p>
+                      <p className="text-sm font-mono">{selectedLead.gst_number || 'Not Available'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">PAN Number (Auto-Extracted)</p>
+                      <p className="text-sm font-mono text-brand-primary">{selectedLead.pan_number || 'Processing...'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Location</p>
+                      <p className="text-sm">{selectedLead.city}, {selectedLead.state || 'India'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Status</p>
+                      <select 
+                        value={selectedLead.status}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value as any;
+                          if (supabase) {
+                            await supabase.from('companies').update({ status: newStatus }).eq('id', selectedLead.id);
+                            fetchLeads();
+                            setSelectedLead({...selectedLead, status: newStatus});
+                          }
+                        }}
+                        className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-white focus:outline-none focus:border-brand-primary/50"
+                      >
+                        <option value="new">New</option>
+                        <option value="warm-lead">Warm Lead</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="qualified">Qualified</option>
+                        <option value="dormant-sme">Dormant SME</option>
+                        <option value="disqualified">Disqualified</option>
+                        <option value="invalid_data">Invalid Data</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Main Category</p>
+                      <p className="text-sm font-bold text-brand-primary">{selectedLead.main_category || 'Uncategorized'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Sub-Category</p>
+                      <p className="text-sm text-white/60">{selectedLead.sub_category || 'None'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Lead Score</p>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-24 bg-white/5 rounded-full overflow-hidden">
+                          <div className="h-full bg-brand-primary" style={{ width: `${selectedLead.lead_score}%` }} />
+                        </div>
+                        <span className="text-sm font-bold">{selectedLead.lead_score}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Engagements</p>
+                      <p className="text-sm font-bold text-brand-primary">{selectedLead.engagement_count || 0}</p>
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Engagements</p>
-                    <p className="text-sm font-bold text-brand-primary">{selectedLead.engagement_count || 0}</p>
-                  </div>
-                </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">Quick Intelligence Actions</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      onClick={async () => {
-                        await trackEngagement(selectedLead.id);
-                        window.open(`https://wa.me/?text=Hello ${selectedLead.name}, checking in regarding...`, '_blank');
-                        fetchLeads();
-                      }}
-                      className="flex items-center justify-center gap-3 p-4 glass rounded-2xl hover:bg-brand-primary/10 hover:border-brand-primary/30 transition-all group"
-                    >
-                      <Phone size={18} className="text-brand-primary group-hover:scale-110 transition-transform" />
-                      <span className="text-sm font-bold">WhatsApp Link</span>
-                    </button>
-                    <button 
-                      onClick={async () => {
-                        await trackEngagement(selectedLead.id);
-                        if (selectedLead.gst_number) {
-                          navigator.clipboard.writeText(selectedLead.gst_number);
-                          alert('GST Number copied for verification');
-                        }
-                        fetchLeads();
-                      }}
-                      className="flex items-center justify-center gap-3 p-4 glass rounded-2xl hover:bg-brand-primary/10 hover:border-brand-primary/30 transition-all group"
-                    >
-                      <ShieldCheck size={18} className="text-brand-primary group-hover:scale-110 transition-transform" />
-                      <span className="text-sm font-bold">Verify GST</span>
-                    </button>
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">Quick Intelligence Actions</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={async () => {
+                          await trackEngagement(selectedLead.id);
+                          window.open(`https://wa.me/?text=Hello ${selectedLead.name}, checking in regarding...`, '_blank');
+                          fetchLeads();
+                        }}
+                        className="flex items-center justify-center gap-3 p-4 glass rounded-2xl hover:bg-brand-primary/10 hover:border-brand-primary/30 transition-all group"
+                      >
+                        <Phone size={18} className="text-brand-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-bold">WhatsApp Link</span>
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          await trackEngagement(selectedLead.id);
+                          if (selectedLead.gst_number) {
+                            navigator.clipboard.writeText(selectedLead.gst_number);
+                            alert('GST Number copied for verification');
+                          }
+                          fetchLeads();
+                        }}
+                        className="flex items-center justify-center gap-3 p-4 glass rounded-2xl hover:bg-brand-primary/10 hover:border-brand-primary/30 transition-all group"
+                      >
+                        <ShieldCheck size={18} className="text-brand-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-bold">Verify GST</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </DashboardLayout>
   );
 }
