@@ -345,17 +345,18 @@ export default function App() {
   useEffect(() => {
     try {
       // Global Safety Check: Toggle Demo Mode based on ANY valid key
-      const hasAnyKey = !!(
+      const hasAnyConfig = !!(
         (import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX && !import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX.includes("YOUR_")) ||
         (import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK && !import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK.includes("YOUR_")) ||
-        (import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY.includes("YOUR_"))
+        (import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY.includes("YOUR_")) ||
+        (import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes("YOUR_"))
       );
 
-      if (!hasAnyKey) {
-        console.warn("🚀 Bell24h: AI Keys missing. Site running in Demo Mode.");
+      if (!hasAnyConfig) {
+        console.warn("🚀 Bell24h: Config missing. Running in Demo Mode.");
         setIsDemoMode(true);
       } else {
-        setIsDemoMode(false); // Clear demo mode if keys are found
+        setIsDemoMode(false);
       }
 
       // Listen to URL search params
@@ -539,12 +540,6 @@ export default function App() {
       setActiveTab={setActiveTab}
       sidebarContent={
         <>
-          {isDemoMode && (
-            <div className="mx-3 mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2 text-amber-200">
-              <AlertCircle size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Demo Mode Active</span>
-            </div>
-          )}
           <section>
             <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Category Heatmap</p>
             <div className="px-3 space-y-2">
@@ -618,12 +613,6 @@ export default function App() {
             />
           )}
         </AnimatePresence>
-        {!supabase && (
-          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3 text-amber-200 text-sm mb-8">
-            <AlertCircle size={18} />
-            <p>Supabase is not configured. Please add <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_ANON_KEY</strong> to your environment variables.</p>
-          </div>
-        )}
         
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
