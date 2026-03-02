@@ -26,26 +26,13 @@ async function startServer() {
   app.post("/api/simulate", async (req, res) => {
     const { category } = req.body;
     
-    // In a real edge function, this would be its own file
-    // For this prototype, we'll implement the simulation logic here
     const MOCK_COMPANY_NAMES = ["Bharat", "Indo", "Global", "Apex", "Swift", "Zenith", "Royal", "Elite", "Prime", "Super"];
     const MOCK_COMPANY_SUFFIXES = ["Industries", "Enterprises", "Solutions", "Technologies", "Manufacturing", "Logistics", "Systems", "Group", "Corp", "Limited"];
     const CITIES = ["Bangalore", "Mumbai", "Delhi", "Pune", "Hyderabad", "Chennai", "Kolkata", "Ahmedabad"];
 
     try {
-      // For this prototype, we can't easily import from src/services/supabase in server.ts (CommonJS/ESM mix)
-      // So we'll just mock the success response if supabase isn't configured, 
-      // or we could use the supabase-js client directly if it was installed.
-      // Assuming we're calling this from the frontend where supabase IS configured.
-      
-      // Let's assume the user wants the logic to be available.
-      // If we had the supabase client here, we'd do the upserts.
-      
       console.log(`ð Simulating 10 leads for category: ${category}`);
-      
-      // Mock delay
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
       res.json({ success: true, message: `Simulated 10 leads for ${category}` });
     } catch (error: any) {
       console.error("Simulation Error:", error);
@@ -101,7 +88,6 @@ async function startServer() {
 
     try {
       const invoke_url = "https://integrate.api.nvidia.com/v1/chat/completions";
-      
       const payload = {
         model: model,
         messages: [
@@ -114,10 +100,9 @@ async function startServer() {
         max_tokens: 8192,
         temperature: 0.7,
         top_p: 0.95,
-        stream: false, // For simplicity in this demo, we'll use non-streaming
+        stream: false,
       };
 
-      // Add model-specific config if needed
       if (model === "qwen/qwen3.5-397b-a17b") {
         (payload as any).chat_template_kwargs = { enable_thinking: true };
       } else if (model === "moonshotai/kimi-k2.5") {
@@ -173,15 +158,25 @@ async function startServer() {
       }
     });
   } else {
-    app.use(express.static(path.join(__dirname, "dist")));
+    app.use(express.static(path.join(process.cwd(), "dist")));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  return app;
+}
+
+const appPromise = startServer();
+
+// For local development
+if (process.env.NODE_ENV !== "production") {
+  appPromise.then(app => {
+    const PORT = 3000;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
   });
 }
 
-startServer();
+export default appPromise;
