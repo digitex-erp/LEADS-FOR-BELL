@@ -1,7 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { MASTER_CATEGORIES } from "../constants/categories";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Safe AI Initialization
+const getAI = () => {
+  const key = import.meta.env.VITE_GEMINI_API_KEY || "";
+  if (!key || key === "YOUR_GEMINI_API_KEY") return null;
+  try {
+    return new GoogleGenAI(key);
+  } catch (e) {
+    console.error("Gemini init failed:", e);
+    return null;
+  }
+};
 
 export interface CategorizationResult {
   mainCategory: string;
@@ -14,7 +24,14 @@ export async function categorizeBusiness(description: string): Promise<Categoriz
     return { mainCategory: "Uncategorized", subCategory: "None", confidence: 0 };
   }
 
+  const ai = getAI();
+  if (!ai) {
+    console.warn("Categorization skipped: No API Key found.");
+    return { mainCategory: "Uncategorized", subCategory: "None", confidence: 0 };
+  }
+
   try {
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
     const categoriesList = MASTER_CATEGORIES.map(c => `${c.name} (${c.subcategories.join(", ")})`).join("\n");
     
     const prompt = `
@@ -36,26 +53,20 @@ export async function categorizeBusiness(description: string): Promise<Categoriz
       If no category fits well, return "Uncategorized" for mainCategory.
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json"
-      }
-    });
-
-    const result = JSON.parse(response.text || "{}");
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const data = JSON.parse(text.replace(/```json/g, "").replace(/```/g, "").trim() || "{}");
     
-    // Validate that the returned category exists in our master list
-    const categoryExists = MASTER_CATEGORIES.find(c => c.name === result.mainCategory);
+    const categoryExists = MASTER_CATEGORIES.find(c => c.name === data.mainCategory);
     if (!categoryExists) {
-      return { mainCategory: "Uncategorized", subCategory: "None", confidence: result.confidence || 0 };
+      return { mainCategory: "Uncategorized", subCategory: "None", confidence: data.confidence || 0 };
     }
 
     return {
-      mainCategory: result.mainCategory || "Uncategorized",
-      subCategory: result.subCategory || "None",
-      confidence: result.confidence || 0
+      mainCategory: data.mainCategory || "Uncategorized",
+      subCategory: data.subCategory || "None",
+      confidence: data.confidence || 0
     };
   } catch (error) {
     console.error("Categorization error:", error);

@@ -28,6 +28,17 @@ export type Company = {
   created_at: string;
 };
 
+export type RFQ = {
+  id: string;
+  title: string;
+  quantity?: string;
+  specifications?: string;
+  category?: string;
+  company_id?: string;
+  status: string;
+  created_at: string;
+};
+
 export type Contact = {
   id: string;
   company_id: string;
@@ -86,6 +97,17 @@ export const upsertCompany = async (company: Partial<Company>) => {
     
   if (error) throw error;
   return data[0] as Company;
+};
+
+export const createRFQ = async (rfq: Partial<RFQ>) => {
+  if (!supabase) throw new Error("Supabase client not initialized.");
+  const { data, error } = await supabase
+    .from('rfqs')
+    .insert([rfq])
+    .select();
+  
+  if (error) throw error;
+  return data[0] as RFQ;
 };
 
 export const trackEngagement = async (id: string) => {

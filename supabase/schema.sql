@@ -25,6 +25,18 @@ CREATE TABLE IF NOT EXISTS companies (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- RFQs Table
+CREATE TABLE IF NOT EXISTS rfqs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    quantity TEXT,
+    specifications TEXT,
+    category TEXT,
+    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Contacts Table
 CREATE TABLE IF NOT EXISTS contacts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -49,11 +61,13 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rfqs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (Simplified for internal use - adjust as needed)
 CREATE POLICY "Allow all for authenticated users" ON companies FOR ALL USING (true);
+CREATE POLICY "Allow all for authenticated users" ON rfqs FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated users" ON contacts FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated users" ON activity_logs FOR ALL USING (true);
 

@@ -1,5 +1,5 @@
-// --- Multi-AI Provider Factory ---
-// This ensures the site never crashes even if API keys are missing or quotas are hit.
+// --- Multi-AI Provider Factory for Bell24h ---
+// Prioritizes NVIDIA Minimax, falls back to DeepSeek, then Gemini.
 
 export interface ChatMessage {
   role: "user" | "model";
@@ -13,15 +13,15 @@ const AI_CONFIG = {
     key: import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX
   },
   deepseek: {
-    model: 'deepseek-ai/deepseek-v3.2',
+    model: 'deepseek-ai/deepseek-v3',
     baseUrl: 'https://integrate.api.nvidia.com/v1',
     key: import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK
   }
 };
 
-async function callNvidiaNIM(provider: 'minimax' | 'deepseek', prompt: string, history: ChatMessage[]) {
+async function callNvidiaNIM(provider: 'minimax' | 'deepseek', prompt: string, history: ChatMessage[] = []) {
   const config = AI_CONFIG[provider];
-  if (!config.key) throw new Error(`${provider} key missing`);
+  if (!config.key || config.key.includes("YOUR_")) throw new Error(`${provider} key missing`);
 
   const messages = [
     ...history.map(h => ({
@@ -68,43 +68,67 @@ export const chatWithGrounding = async (
 ) => {
   try {
     // 1. Try Primary: Minimax
-    if (AI_CONFIG.minimax.key) {
+    if (AI_CONFIG.minimax.key && !AI_CONFIG.minimax.key.includes("YOUR_")) {
       console.log("⚡ AI Engine: Using Minimax-m2.5...");
       return await callNvidiaNIM('minimax', message, history);
     }
     
     // 2. Try Backup: DeepSeek
-    if (AI_CONFIG.deepseek.key) {
-      console.log("🧠 AI Engine: Using DeepSeek-v3.2...");
+    if (AI_CONFIG.deepseek.key && !AI_CONFIG.deepseek.key.includes("YOUR_")) {
+      console.log("🧠 AI Engine: Using DeepSeek-v3...");
       return await callNvidiaNIM('deepseek', message, history);
     }
 
-    // 3. Fallback: Mock/Demo Mode
+    // 3. Fallback: Gemini (if available)
+    // For now, let's just return a demo response to prevent crashes
     console.warn("⚠️ AI Engine: No keys found. Entering Demo Mode.");
     return {
-      text: "Intelligence Engine is in Demo Mode. Please configure VITE_NVIDIA_API_KEY_MINIMAX in Vercel to activate real-time leads.",
-      groundingChunks: []
+      text: "Bell24h AI is in Demo Mode. To activate real-time intelligence, please configure VITE_NVIDIA_API_KEY_MINIMAX in your environment.",
+      reasoning: null
     };
 
   } catch (error: any) {
     console.error("❌ AI Orchestrator Error:", error);
     
-    // Auto-fallback if primary failed but backup exists
+    // Auto-fallback to DeepSeek if Minimax failed
     if (AI_CONFIG.deepseek.key && !message.includes("fallback_active")) {
       try {
+        console.log("🔄 Automatic Fallback: Switching to DeepSeek...");
         return await callNvidiaNIM('deepseek', message + " (fallback_active)", history);
       } catch (e) {
-        return { text: "Critical AI failure. Please check your NVIDIA NIM quotas." };
+        return { text: "Critical AI failure. Please check your provider quotas." };
       }
     }
 
-    return { text: `Error: ${error.message}. Site remaining live via safety safety net.` };
+    return { text: `Service unreachable: ${error.message}. Site remains active.` };
   }
 };
 
-// RFQ Extraction Utility
+// RFQ Extraction Utility - Maps voice transcript to structured fields
 export const generateRFQ = async (transcript: string) => {
-  const prompt = `Extract industrial RFQ details from this transcript: "${transcript}". 
-  Return a structured summary with Company, Requirements, Quantity, and Urgency.`;
-  return await chatWithGrounding(prompt);
+  const prompt = `You are a procurement expert. Analyze this industrial voice transcript and extract RFQ details.
+  Transcript: "${transcript}"
+  
+  Return ONLY a valid JSON object:
+  {
+    "title": "Clear requirement title",
+    "quantity": "Amount with units",
+    "specifications": "Technical details",
+    "category": "One of: Steel, Chemicals, Electronics, Textiles, Agriculture"
+  }`;
+  
+  try {
+    const result = await chatWithGrounding(prompt);
+    // Parse the JSON from the markdown-wrapped or raw response
+    const jsonStr = result.text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error("RFQ Extraction failed:", e);
+    return {
+      title: "Manual RFQ Entry",
+      quantity: "Unknown",
+      specifications: transcript,
+      category: "General"
+    };
+  }
 };
