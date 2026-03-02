@@ -53,7 +53,7 @@ export const DashboardLayout = ({ activeTab, setActiveTab, children, sidebarCont
           <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center text-brand-dark shadow-[0_0_15px_rgba(0,255,0,0.3)]">
             <TrendingUp size={20} strokeWidth={2.5} />
           </div>
-          <h1 className="font-display font-bold text-lg tracking-tight">Bell24h</h1>
+          <h1 className="font-display font-bold text-lg tracking-tight">Bell24h Internal</h1>
         </div>
 
         <div className="space-y-6 flex-1 overflow-y-auto scrollbar-hide">

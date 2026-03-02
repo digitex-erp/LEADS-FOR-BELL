@@ -28,9 +28,28 @@ export type Company = {
   main_category?: string;
   sub_category?: string;
   status: 'new' | 'warm-lead' | 'dormant-sme' | 'contacted' | 'qualified' | 'disqualified' | 'invalid_data';
+  is_approved: boolean;
+  approved_at?: string;
   tags: string[];
   created_at: string;
   metadata?: any;
+};
+
+// ... existing code ...
+
+export const approveCompany = async (id: string, isApproved: boolean) => {
+  if (!supabase) throw new Error("Supabase client not initialized.");
+  const { data, error } = await supabase
+    .from('companies')
+    .update({ 
+      is_approved: isApproved,
+      approved_at: isApproved ? new Date().toISOString() : null
+    })
+    .eq('id', id)
+    .select();
+  
+  if (error) throw error;
+  return data[0] as Company;
 };
 
 export type RFQ = {
