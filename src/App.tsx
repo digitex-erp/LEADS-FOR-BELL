@@ -283,10 +283,72 @@ const ChatBot = () => {
 
 // --- Main App ---
 
+// --- Multi-Model AI Orchestrator ---
+const AI_CONFIG = {
+  minimax: {
+    model: 'minimaxai/minimax-m2.5',
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    key: import.meta.env.VITE_NVIDIA_MINIMAX_KEY
+  },
+  deepseek: {
+    model: 'deepseek-ai/deepseek-v3',
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    key: import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY
+  }
+};
+
+async function callNvidiaNIM(model: 'minimax' | 'deepseek', prompt: string) {
+  const config = AI_CONFIG[model];
+  if (!config.key) throw new Error(`${model} API key missing`);
+
+  const extraBody = model === 'deepseek' ? { thinking: true } : {};
+
+  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.key}`
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [{ role: 'user', content: prompt }],
+      ...extraBody
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.message || `${model} API error`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+async function generateRFQ(voiceTranscript: string) {
+  console.log("🚀 AI Orchestrator: Generating RFQ from transcript...");
+  const prompt = `Extract industrial RFQ details from this transcript: "${voiceTranscript}". Return JSON with: company, requirements, quantity, urgency.`;
+
+  try {
+    // Try Primary: Minimax
+    return await callNvidiaNIM('minimax', prompt);
+  } catch (error) {
+    console.warn("⚠️ Minimax failed, falling back to DeepSeek...", error);
+    try {
+      // Try Backup: DeepSeek
+      return await callNvidiaNIM('deepseek', prompt);
+    } catch (fallbackError) {
+      console.error("❌ All AI models failed:", fallbackError);
+      throw new Error("Lead Intelligence Engine temporarily offline.");
+    }
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leads, setLeads] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Company | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [importPreview, setImportPreview] = useState<{ leads: Partial<Company>[], summary: Record<string, number> } | null>(null);
@@ -296,6 +358,11 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Check for keys
+    if (!import.meta.env.VITE_NVIDIA_MINIMAX_KEY && !import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY) {
+      setIsDemoMode(true);
+    }
+
     // Listen to URL search params
     const params = new URLSearchParams(window.location.search);
     const categoryParam = params.get('category');
@@ -469,6 +536,12 @@ export default function App() {
       setActiveTab={setActiveTab}
       sidebarContent={
         <>
+          {isDemoMode && (
+            <div className="mx-3 mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2 text-amber-200">
+              <AlertCircle size={14} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Demo Mode Active</span>
+            </div>
+          )}
           <section>
             <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-2">Category Heatmap</p>
             <div className="px-3 space-y-2">
