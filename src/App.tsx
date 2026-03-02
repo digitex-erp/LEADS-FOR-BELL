@@ -24,7 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
-import { chatWithGrounding } from './services/gemini';
+import { chatWithGrounding, generateRFQ } from './services/gemini';
 import { getCompanies, Company, createCompany, updateCompanyScore, supabase, upsertCompany, trackEngagement, logActivity } from './services/supabase';
 import { calculateLeadScore } from './services/scoring';
 import { MASTER_CATEGORIES, Category } from './constants/categories';
@@ -283,72 +283,12 @@ const ChatBot = () => {
 
 // --- Main App ---
 
-// --- Multi-Model AI Orchestrator ---
-const AI_CONFIG = {
-  minimax: {
-    model: 'minimaxai/minimax-m2.5',
-    baseUrl: 'https://integrate.api.nvidia.com/v1',
-    key: import.meta.env.VITE_NVIDIA_MINIMAX_KEY
-  },
-  deepseek: {
-    model: 'deepseek-ai/deepseek-v3',
-    baseUrl: 'https://integrate.api.nvidia.com/v1',
-    key: import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY
-  }
-};
-
-async function callNvidiaNIM(model: 'minimax' | 'deepseek', prompt: string) {
-  const config = AI_CONFIG[model];
-  if (!config.key) throw new Error(`${model} API key missing`);
-
-  const extraBody = model === 'deepseek' ? { thinking: true } : {};
-
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.key}`
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [{ role: 'user', content: prompt }],
-      ...extraBody
-    })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || `${model} API error`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
-}
-
-async function generateRFQ(voiceTranscript: string) {
-  console.log("🚀 AI Orchestrator: Generating RFQ from transcript...");
-  const prompt = `Extract industrial RFQ details from this transcript: "${voiceTranscript}". Return JSON with: company, requirements, quantity, urgency.`;
-
-  try {
-    // Try Primary: Minimax
-    return await callNvidiaNIM('minimax', prompt);
-  } catch (error) {
-    console.warn("⚠️ Minimax failed, falling back to DeepSeek...", error);
-    try {
-      // Try Backup: DeepSeek
-      return await callNvidiaNIM('deepseek', prompt);
-    } catch (fallbackError) {
-      console.error("❌ All AI models failed:", fallbackError);
-      throw new Error("Lead Intelligence Engine temporarily offline.");
-    }
-  }
-}
-
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leads, setLeads] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<Company | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [importPreview, setImportPreview] = useState<{ leads: Partial<Company>[], summary: Record<string, number> } | null>(null);
@@ -358,21 +298,28 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Check for keys
-    if (!import.meta.env.VITE_NVIDIA_MINIMAX_KEY && !import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY) {
-      setIsDemoMode(true);
-    }
+    try {
+      // Safety Check: Environment Variables
+      const hasNvidiaKey = !!(import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX || import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK);
+      if (!hasNvidiaKey) {
+        console.warn("🚀 Bell24h: AI Keys missing. Running in Demo Mode.");
+        setIsDemoMode(true);
+      }
 
-    // Listen to URL search params
-    const params = new URLSearchParams(window.location.search);
-    const categoryParam = params.get('category');
-    if (categoryParam) {
-      setSelectedCategory(categoryParam);
-      setActiveTab('leads');
-    }
+      // Listen to URL search params
+      const params = new URLSearchParams(window.location.search);
+      const categoryParam = params.get('category');
+      if (categoryParam) {
+        setSelectedCategory(categoryParam);
+        setActiveTab('leads');
+      }
 
-    console.log("🚀 Bell24h Orchestrator: Connected to Supabase");
-    fetchLeads();
+      console.log("🚀 Bell24h Orchestrator: Connected to Supabase");
+      fetchLeads();
+    } catch (err: any) {
+      console.error("❌ Initialization Failure:", err);
+      setInitError(err.message || "Critical startup error.");
+    }
   }, []);
 
   const updateCategoryParam = (category: string) => {
