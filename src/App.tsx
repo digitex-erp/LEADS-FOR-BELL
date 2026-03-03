@@ -644,14 +644,22 @@ export default function App() {
                     <h2 className="text-3xl font-display font-bold">Intelligence Overview</h2>
                     <p className="text-white/40 text-sm mt-1">Real-time market liquidity and lead acquisition</p>
                   </div>
-                  <button 
-                    onClick={() => setIsJoinModalOpen(true)}
-                    className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,0,0.2)]"
-                  >
-                    <Plus size={18} strokeWidth={3} />
-                    Join as Supplier
-                  </button>
-                </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => handleSimulate(selectedCategory?.name || 'Manufacturing')}
+                      className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,0,0.2)]"
+                    >
+                      <Database size={18} strokeWidth={3} />
+                      Simulate 10 Leads
+                    </button>
+                    <button
+                      onClick={() => setIsJoinModalOpen(true)}
+                      className="px-6 py-2.5 glass text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform border border-white/10"
+                    >
+                      <Plus size={18} strokeWidth={3} />
+                      Join as Supplier
+                    </button>
+                  </div>                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <StatCard 

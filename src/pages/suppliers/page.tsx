@@ -48,7 +48,7 @@ export const SuppliersPage = () => {
       return;
     }
 
-    const headers = ["Name", "GSTIN", "Email", "Phone", "Industry", "Approved At"];
+    const headers = ["Name", "GSTIN", "Email", "Mobile", "Industry", "Approved At"];
     const csvContent = [
       headers.join(","),
       ...approved.map(s => [

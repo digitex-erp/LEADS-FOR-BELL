@@ -19,7 +19,7 @@ export default async function handler(req: any, res: any) {
     // 2. Query Approved Leads
     const { data, error } = await supabase
       .from('companies')
-      .select('name, gst_number, email, phone, industry, approved_at')
+      .select('name, gst_number, email, mobile, industry, approved_at')
       .eq('is_approved', true);
 
     if (error) throw error;
@@ -28,8 +28,8 @@ export default async function handler(req: any, res: any) {
     const cleanedLeads = (data || []).map(lead => ({
       ...lead,
       // Ensure +91 prefix
-      phone: lead.phone 
-        ? (lead.phone.startsWith('+91') ? lead.phone : `+91 ${lead.phone.replace(/\D/g, '')}`)
+      mobile: lead.mobile 
+        ? (lead.mobile.startsWith('+91') ? lead.mobile : `+91 ${lead.mobile.replace(/\D/g, '')}`)
         : null,
       // Strip spaces from GST
       gst_number: lead.gst_number ? lead.gst_number.replace(/\s+/g, '') : null

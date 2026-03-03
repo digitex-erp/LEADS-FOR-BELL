@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS companies (
     gst_number TEXT UNIQUE,
     industry TEXT,
     email TEXT,
-    phone TEXT,
+    mobile TEXT,
     website TEXT,
     city TEXT,
     state TEXT,
