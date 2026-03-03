@@ -37,7 +37,7 @@ export const SuppliersPage = () => {
 
   const handleInvite = (supplier: Company) => {
     const message = `Hi ${supplier.name}, your business [GST: ${supplier.gst_number || 'verified'}] is verified on Bell24h Lead Factory. Complete your profile on our Main Marketplace here: ${mainSiteUrl}`;
-    const whatsappUrl = `https://wa.me/${supplier.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/${supplier.mobile?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -55,7 +55,7 @@ export const SuppliersPage = () => {
         `"${s.name}"`,
         `"${s.gst_number || ''}"`,
         `"${s.email || ''}"`,
-        `"${s.phone || ''}"`,
+        `"${s.mobile || ''}"`,
         `"${s.industry || s.main_category || ''}"`,
         `"${s.approved_at || ''}"`
       ].join(","))
@@ -138,7 +138,7 @@ export const SuppliersPage = () => {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-white/60">
                       <Phone size={12} className="text-white/20" />
-                      <span>{supplier.phone || 'N/A'}</span>
+                      <span>{supplier.mobile || 'N/A'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">

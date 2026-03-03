@@ -15,7 +15,7 @@ export const JoinSupplierModal = ({ isOpen, onClose, onSuccess }: JoinSupplierMo
   const [formData, setFormData] = useState({
     name: '',
     gst_number: '',
-    phone: '',
+    mobile: '',
     industry: 'Manufacturing'
   });
 
@@ -110,8 +110,8 @@ export const JoinSupplierModal = ({ isOpen, onClose, onSuccess }: JoinSupplierMo
                   <input 
                     required
                     type="tel"
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    value={formData.mobile}
+                    onChange={e => setFormData({...formData, mobile: e.target.value})}
                     placeholder="+91 Mobile for RFQ alerts"
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand-primary/50 transition-colors"
                   />

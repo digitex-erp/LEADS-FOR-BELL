@@ -823,11 +823,11 @@ export default function App() {
               <div className="grid grid-cols-2 gap-6 text-sm">
                 <div><p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">GSTIN</p><p className="font-mono text-brand-primary">{selectedLead.gst_number || 'PENDING'}</p></div>
                 <div><p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Email</p><p>{selectedLead.email || 'N/A'}</p></div>
-                <div><p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Mobile</p><p>{selectedLead.phone || 'N/A'}</p></div>
+                <div><p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Mobile</p><p>{selectedLead.mobile || 'N/A'}</p></div>
                 <div><p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Score</p><p className="font-bold">{selectedLead.lead_score}</p></div>
               </div>
               <div className="pt-4 border-t border-white/5 flex gap-4">
-                <button onClick={() => window.open(`https://wa.me/${selectedLead.phone?.replace(/\D/g,'')}`)} className="flex-1 py-3 bg-[#25D366] text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2"><Phone size={16} /> WhatsApp</button>
+                <button onClick={() => window.open(`https://wa.me/${selectedLead.mobile?.replace(/\D/g,'')}`)} className="flex-1 py-3 bg-[#25D366] text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2"><Phone size={16} /> WhatsApp</button>
                 <button onClick={() => { navigator.clipboard.writeText(selectedLead.gst_number || ''); alert('GST Copied'); }} className="flex-1 py-3 glass rounded-xl text-sm font-bold flex items-center justify-center gap-2"><ShieldCheck size={16} /> Verify GST</button>
               </div>
             </motion.div>

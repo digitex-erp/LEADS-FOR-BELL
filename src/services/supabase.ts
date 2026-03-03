@@ -20,7 +20,7 @@ export type Company = {
   pincode?: string;
   website?: string;
   email?: string;
-  phone?: string;
+  mobile?: string;
   lead_score: number;
   engagement_count: number;
   last_interaction?: string;
@@ -69,7 +69,7 @@ export type Contact = {
   name: string;
   role?: string;
   email?: string;
-  phone?: string;
+  mobile?: string;
   is_primary: boolean;
   created_at: string;
 };
@@ -89,6 +89,10 @@ export const getCompanies = async () => {
 
 export const createCompany = async (company: Partial<Company>) => {
   if (!supabase) throw new Error("Supabase client not initialized. Check your environment variables.");
+  
+  // Refresh session to clear schema cache if it helps
+  try { await supabase.auth.refreshSession(); } catch (e) {}
+  
   const { data, error } = await supabase
     .from('companies')
     .insert([company])
@@ -112,6 +116,9 @@ export const updateCompanyScore = async (id: string, score: number) => {
 
 export const upsertCompany = async (company: Partial<Company>) => {
   if (!supabase) throw new Error("Supabase client not initialized.");
+  
+  // Refresh session to clear schema cache if it helps
+  try { await supabase.auth.refreshSession(); } catch (e) {}
   
   // If GST exists, we use it as the unique key for upsert
   const { data, error } = await supabase
