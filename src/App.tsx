@@ -22,7 +22,8 @@ import {
   Mic,
   Save,
   CheckCircle2,
-  Brain
+  Brain,
+  Code
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -37,8 +38,11 @@ import { simulateLeads } from './services/simulation';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { SuppliersPage } from './pages/suppliers/page';
 import { SettingsPage } from './pages/Settings';
+import { ApiDocs } from './pages/ApiDocs';
 import { SimulationButton } from './components/SimulationButton';
 import { SuccessCard } from './components/SuccessCard';
+import { LeadVerifiedCard } from './components/LeadVerifiedCard';
+import { LiveTicker } from './components/LiveTicker';
 import { JoinSupplierModal } from './components/JoinSupplierModal';
 import { 
   LineChart, 
@@ -702,6 +706,26 @@ export default function App() {
         
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <LiveTicker leads={leads} />
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => handleSimulate(selectedCategory !== 'All' ? selectedCategory : 'Manufacturing')}
+                  className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,0,0.2)]"
+                >
+                  <Database size={18} strokeWidth={3} />
+                  Simulate 10 Leads
+                </button>
+                <button
+                  onClick={() => setIsJoinModalOpen(true)}
+                  className="px-6 py-2.5 glass text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform border border-white/10"
+                >
+                  <Plus size={18} strokeWidth={3} />
+                  Join as Supplier
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
                 <div className="flex justify-between items-end">
@@ -709,22 +733,7 @@ export default function App() {
                     <h2 className="text-3xl font-display font-bold">Intelligence Overview</h2>
                     <p className="text-white/40 text-sm mt-1">Real-time market liquidity and lead acquisition</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => handleSimulate(selectedCategory !== 'All' ? selectedCategory : 'Manufacturing')}
-                      className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,0,0.2)]"
-                    >
-                      <Database size={18} strokeWidth={3} />
-                      Simulate 10 Leads
-                    </button>
-                    <button
-                      onClick={() => setIsJoinModalOpen(true)}
-                      className="px-6 py-2.5 glass text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform border border-white/10"
-                    >
-                      <Plus size={18} strokeWidth={3} />
-                      Join as Supplier
-                    </button>
-                  </div>                </div>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <StatCard 
@@ -802,7 +811,28 @@ export default function App() {
 
         {activeTab === 'suppliers' && <SuppliersPage />}
 
-        {activeTab === 'settings' && <SettingsPage />}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <SettingsPage />
+            <div className="max-w-4xl px-8">
+              <button 
+                onClick={() => setActiveTab('api-docs')}
+                className="flex items-center gap-3 px-6 py-4 glass rounded-2xl w-full border-brand-primary/10 hover:border-brand-primary/30 transition-all group"
+              >
+                <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary group-hover:scale-110 transition-transform">
+                  <Code size={20} />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-sm">Bell24h Feed Handshake</p>
+                  <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Developer Docs for Main Site Sync</p>
+                </div>
+                <ChevronRight size={20} className="ml-auto text-white/20 group-hover:text-brand-primary" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'api-docs' && <ApiDocs />}
 
         {activeTab === 'categories' && (
           <div className="h-[calc(100vh-160px)] flex flex-col gap-6">

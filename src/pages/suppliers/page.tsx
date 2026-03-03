@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Database, TrendingUp, AlertCircle, ShoppingCart, Users, Search, Globe, Mail, Phone, ShieldCheck, CheckCircle2, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, Company, getCompanies, approveCompany } from '../../services/supabase';
-import { SuccessCard } from '../../components/SuccessCard';
+import { LeadVerifiedCard } from '../../components/LeadVerifiedCard';
 
 export const SuppliersPage = () => {
   const [suppliers, setSuppliers] = useState<Company[]>([]);
@@ -34,7 +34,7 @@ export const SuppliersPage = () => {
       await approveCompany(id, !currentStatus);
       if (!currentStatus) {
         setApprovalSuccess({ category: supplier.main_category || 'General', name: supplier.name });
-        setTimeout(() => setApprovalSuccess(null), 5000);
+        setTimeout(() => setApprovalSuccess(null), 10000);
       }
       fetchSuppliers();
     } catch (err: any) {
@@ -83,10 +83,9 @@ export const SuppliersPage = () => {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <AnimatePresence>
         {approvalSuccess && (
-          <SuccessCard 
+          <LeadVerifiedCard 
             category={approvalSuccess.category}
-            count={1}
-            totalInCategory={suppliers.filter(s => s.main_category === approvalSuccess.category && s.is_approved).length}
+            name={approvalSuccess.name}
             onClose={() => setApprovalSuccess(null)}
           />
         )}
