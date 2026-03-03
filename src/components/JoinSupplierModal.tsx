@@ -152,6 +152,43 @@ export const JoinSupplierModal = ({ isOpen, onClose, onSuccess }: JoinSupplierMo
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-1">Industry</label>
+                  <div className="relative">
+                    <Tag size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
+                    <select
+                      required
+                      value={formData.industry}
+                      onChange={e => setFormData({...formData, industry: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand-primary/50 transition-colors appearance-none"
+                    >
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.name} className="bg-brand-dark">{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-1">Subcategory</label>
+                  <div className="relative">
+                    <Filter size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
+                    <select
+                      required
+                      value={formData.sub_category}
+                      onChange={e => setFormData({...formData, sub_category: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand-primary/50 transition-colors appearance-none"
+                    >
+                      {subcategories.map(sub => (
+                        <option key={sub.id} value={sub.name} className="bg-brand-dark">{sub.name}</option>
+                      ))}
+                      {subcategories.length === 0 && <option value="" className="bg-brand-dark">Generic</option>}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <button 
