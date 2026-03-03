@@ -29,9 +29,9 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
 import { chatWithGrounding, generateRFQ } from './services/gemini';
-import { getCompanies, Company, createCompany, updateCompanyScore, supabase, upsertCompany, trackEngagement, logActivity, createRFQ, RFQ } from './services/supabase';
+import { getCompanies, Company, createCompany, updateCompanyScore, supabase, upsertCompany, trackEngagement, logActivity, createRFQ, RFQ, getDBCategories, DBCategory } from './services/supabase';
 import { calculateLeadScore } from './services/scoring';
-import { MASTER_CATEGORIES, Category } from './constants/categories';
+import { MASTER_CATEGORIES } from './constants/categories';
 import { categorizeBusiness } from './services/nlpCategorizer';
 import { simulateLeads } from './services/simulation';
 import { DashboardLayout } from './layouts/DashboardLayout';
@@ -68,13 +68,6 @@ const VELOCITY_DATA = [
   { name: 'Feb 12', value: 380, value2: 320 },
 ];
 
-const DISTRIBUTION_DATA = [
-  { name: 'High', value: 400, color: '#00FF00' },
-  { name: 'Medium', value: 300, color: '#3b82f6' },
-  { name: 'Low', value: 200, color: '#a855f7' },
-  { name: 'New', value: 100, color: '#f59e0b' },
-];
-
 // --- Components ---
 
 const AIStatusIndicator = ({ model }: { model: string }) => {
@@ -91,7 +84,7 @@ const AIStatusIndicator = ({ model }: { model: string }) => {
   );
 };
 
-const MarketMap = ({ leads, loading }: { leads: Company[], loading: boolean }) => {
+const MarketMap = ({ leads, categories, loading, onSelectCategory }: { leads: Company[], categories: DBCategory[], loading: boolean, onSelectCategory: (cat: string) => void }) => {
   if (loading) {
     return (
       <div className="flex-1 glass rounded-3xl flex flex-col items-center justify-center gap-4 bg-brand-dark/40 min-h-[400px]">
@@ -101,7 +94,7 @@ const MarketMap = ({ leads, loading }: { leads: Company[], loading: boolean }) =
     );
   }
 
-  if (leads.length === 0) {
+  if (categories.length === 0 && leads.length === 0) {
     return (
       <div className="flex-1 glass rounded-3xl flex flex-col items-center justify-center gap-4 bg-brand-dark/40 min-h-[400px]">
         <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-white/20">
@@ -121,36 +114,37 @@ const MarketMap = ({ leads, loading }: { leads: Company[], loading: boolean }) =
     return acc;
   }, {} as Record<string, number>);
 
-  const sortedCategories = Object.entries(categoryCounts)
-    .sort(([, a], [, b]) => b - a);
-
   return (
-    <div className="flex-1 glass rounded-3xl overflow-hidden relative bg-brand-dark/40 min-h-[400px] p-8">
+    <div className="flex-1 glass rounded-3xl overflow-y-auto relative bg-brand-dark/40 min-h-[400px] p-8 scrollbar-hide">
       <div className="absolute inset-0 opacity-10 pointer-events-none" 
         style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '24px 24px' }} 
       />
       
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedCategories.map(([cat, count]) => (
-          <div key={cat} className="glass p-6 rounded-2xl border-white/5 hover:border-brand-primary/30 transition-all group cursor-default">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
-                <Building2 size={20} />
+      <div className="relative z-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {categories.map((cat) => {
+          const count = categoryCounts[cat.name] || 0;
+          return (
+            <div 
+              key={cat.id} 
+              onClick={() => onSelectCategory(cat.name)}
+              className="glass p-4 rounded-xl border-white/5 hover:border-brand-primary/30 transition-all group cursor-pointer"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                  <Building2 size={16} />
+                </div>
+                <span className="text-lg font-bold font-display text-white/80">{count}</span>
               </div>
-              <span className="text-2xl font-bold font-display text-white/80">{count}</span>
+              <h4 className="font-bold text-[10px] uppercase tracking-wider truncate">{cat.name}</h4>
+              <div className="mt-2 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-brand-primary" 
+                  style={{ width: `${Math.min(100, (count / (leads.length || 1)) * 100)}%` }} 
+                />
+              </div>
             </div>
-            <h4 className="font-bold text-sm truncate">{cat}</h4>
-            <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-brand-primary" 
-                style={{ width: `${Math.min(100, (count / leads.length) * 100)}%` }} 
-              />
-            </div>
-            <p className="mt-2 text-[10px] font-bold text-white/20 uppercase tracking-widest">
-              {((count / leads.length) * 100).toFixed(1)}% Market Share
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -381,11 +375,13 @@ const ChatBot = () => {
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leads, setLeads] = useState<Company[]>([]);
+  const [dbCategories, setDbCategories] = useState<DBCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<Company | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [importPreview, setImportPreview] = useState<{ leads: Partial<Company>[], summary: Record<string, number> } | null>(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -395,33 +391,52 @@ export default function App() {
 
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
-  useEffect(() => {
+  const fetchLeads = async () => {
     try {
-      const hasAnyConfig = !!(
-        (import.meta.env.VITE_NVIDIA_MINIMAX_KEY && !import.meta.env.VITE_NVIDIA_MINIMAX_KEY.includes("YOUR_")) ||
-        (import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY && !import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY.includes("YOUR_")) ||
-        (import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY.includes("YOUR_")) ||
-        (import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes("YOUR_"))
-      );
-
-      if (!hasAnyConfig) {
-        setIsDemoMode(true);
-      } else {
-        setIsDemoMode(false);
-      }
-
-      const params = new URLSearchParams(window.location.search);
-      const categoryParam = params.get('category');
-      if (categoryParam) {
-        setSelectedCategory(categoryParam);
-        setActiveTab('leads');
-      }
-
-      fetchLeads();
-    } catch (err: any) {
-      console.error("❌ Critical Initialization Failure:", err);
-      setInitError(err.message || "Startup protected by safety net.");
+      setLoading(true);
+      const [leadsData, catsData] = await Promise.all([
+        getCompanies(),
+        getDBCategories()
+      ]);
+      setLeads(leadsData || []);
+      setDbCategories(catsData || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await fetchLeads();
+
+        const hasAnyConfig = !!(
+          (import.meta.env.VITE_NVIDIA_MINIMAX_KEY && !import.meta.env.VITE_NVIDIA_MINIMAX_KEY.includes("YOUR_")) ||
+          (import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY && !import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY.includes("YOUR_")) ||
+          (import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY.includes("YOUR_")) ||
+          (import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes("YOUR_"))
+        );
+
+        if (!hasAnyConfig) {
+          setIsDemoMode(true);
+        } else {
+          setIsDemoMode(false);
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const categoryParam = params.get('category');
+        if (categoryParam) {
+          setSelectedCategory(categoryParam);
+          setActiveTab('leads');
+        }
+      } catch (err: any) {
+        console.error("❌ Critical Initialization Failure:", err);
+        setInitError(err.message || "Startup protected by safety net.");
+      }
+    };
+    init();
   }, []);
 
   const handleSaveRFQ = async (rfqData: Partial<RFQ>) => {
@@ -448,18 +463,6 @@ export default function App() {
     }
     window.history.pushState({}, '', url);
     setSelectedCategory(category);
-  };
-
-  const fetchLeads = async () => {
-    try {
-      setLoading(true);
-      const data = await getCompanies();
-      setLeads(data || []);
-    } catch (error) {
-      console.error("Error fetching leads:", error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -550,26 +553,37 @@ export default function App() {
     }
   };
 
-  // --- Dynamic Velocity Logic ---
+  // --- Dynamic Analytics Logic ---
   const getVelocityData = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days.map(day => ({
       name: day,
-      value: leads.filter(l => new Date(l.created_at).getDay() === days.indexOf(day)).length + Math.floor(Math.random() * 5),
+      value: leads.filter(l => new Date(l.created_at).getDay() === days.indexOf(day)).length,
     }));
   };
 
   const getDistributionData = () => {
-    const cats = ['Iron & Steel', 'Apparel', 'Agriculture', 'EVs', 'Automobile'];
+    const topCats = [...dbCategories]
+      .map(cat => ({
+        name: cat.name,
+        value: leads.filter(l => l.main_category === cat.name).length
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
     const colors = ['#00FF00', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899'];
-    return cats.map((cat, i) => ({
-      name: cat,
-      value: leads.filter(l => l.main_category === cat).length || 1,
-      color: colors[i]
+    return topCats.map((cat, i) => ({
+      ...cat,
+      color: colors[i % colors.length]
     }));
   };
 
-  const displayLeads = leads.filter(l => selectedCategory === 'All' || l.main_category === selectedCategory);
+  const displayLeads = leads.filter(l => 
+    (selectedCategory === 'All' || l.main_category === selectedCategory) &&
+    (l.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     l.industry?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     l.main_category?.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   if (loading && leads.length === 0) {
     return (
@@ -611,14 +625,14 @@ export default function App() {
                 <span>All Categories</span>
                 <span className="text-brand-primary font-bold">{leads.length}</span>
               </button>
-              {MASTER_CATEGORIES
+              {dbCategories
                 .map(cat => ({
                   name: cat.name,
                   count: leads.filter(l => l.main_category === cat.name).length
                 }))
                 .filter(c => c.count > 0)
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 5)
+                .slice(0, 8)
                 .map(cat => (
                   <button 
                     key={cat.name} 
@@ -627,9 +641,12 @@ export default function App() {
                       setActiveTab('leads');
                       logActivity('category_interest', `Clicked heatmap: ${cat.name}`);
                     }}
-                    className="w-full flex items-center justify-between text-[10px] hover:bg-white/5 p-1 rounded transition-colors group text-left"
+                    className={cn(
+                      "w-full flex items-center justify-between text-[10px] hover:bg-white/5 p-1 rounded transition-colors group text-left",
+                      selectedCategory === cat.name ? "bg-white/10 text-white" : "text-white/40"
+                    )}
                   >
-                    <span className="text-white/40 truncate pr-2 group-hover:text-white">{cat.name}</span>
+                    <span className="truncate pr-2 group-hover:text-white">{cat.name}</span>
                     <span className="text-brand-primary font-bold">{cat.count}</span>
                   </button>
                 ))
@@ -647,8 +664,8 @@ export default function App() {
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-brand-primary focus:outline-none"
                 >
                   <option value="">Select Category...</option>
-                  {MASTER_CATEGORIES.map(cat => (
-                    <option key={cat.name} value={cat.name}>{cat.name}</option>
+                  {dbCategories.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
                   ))}
                 </select>
                 <SimulationButton 
@@ -694,7 +711,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-4">
                     <button
-                      onClick={() => handleSimulate(selectedCategory?.name || 'Manufacturing')}
+                      onClick={() => handleSimulate(selectedCategory !== 'All' ? selectedCategory : 'Manufacturing')}
                       className="px-6 py-2.5 bg-brand-primary text-brand-dark rounded-xl text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,0,0.2)]"
                     >
                       <Database size={18} strokeWidth={3} />
@@ -788,19 +805,44 @@ export default function App() {
         {activeTab === 'settings' && <SettingsPage />}
 
         {activeTab === 'categories' && (
-          <div className="h-[calc(100vh-200px)] flex flex-col gap-6">
-            <h2 className="text-xl font-display font-bold">Category Market Map</h2>
-            <MarketMap leads={leads} loading={loading} />
+          <div className="h-[calc(100vh-160px)] flex flex-col gap-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-display font-bold">Category Market Map</h2>
+              <div className="px-4 py-1.5 glass rounded-full text-[10px] font-bold text-white/40">
+                {dbCategories.length} Active Industries Detected
+              </div>
+            </div>
+            <MarketMap 
+              leads={leads} 
+              categories={dbCategories} 
+              loading={loading} 
+              onSelectCategory={(cat) => {
+                updateCategoryParam(cat);
+                setActiveTab('leads');
+              }}
+            />
           </div>
         )}
 
         {activeTab === 'leads' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-display font-bold">Full Lead Database</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-display font-bold">Full Lead Database</h2>
+                {selectedCategory !== 'All' && (
+                  <span className="px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-full text-[10px] font-bold border border-brand-primary/20">
+                    {selectedCategory}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 w-64">
                 <Search size={14} className="text-white/30" />
-                <input placeholder="Filter by name..." className="bg-transparent border-none text-xs focus:outline-none w-full text-white" />
+                <input 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter by name or industry..." 
+                  className="bg-transparent border-none text-xs focus:outline-none w-full text-white" 
+                />
               </div>
             </div>
             
@@ -816,7 +858,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border">
-                  {displayLeads.map((lead) => (
+                  {displayLeads.length > 0 ? displayLeads.map((lead) => (
                     <tr key={lead.id} onClick={() => setSelectedLead(lead)} className="hover:bg-white/[0.02] transition-colors group cursor-pointer">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -824,7 +866,7 @@ export default function App() {
                           <p className="text-sm font-semibold">{lead.name}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-xs text-white/60">{lead.industry}</td>
+                      <td className="px-6 py-4 text-xs text-white/60">{lead.main_category || lead.industry}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1 w-12 bg-white/5 rounded-full overflow-hidden">
@@ -833,10 +875,25 @@ export default function App() {
                           <span className="text-xs font-bold">{lead.lead_score}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">{lead.status}</td>
+                      <td className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded",
+                          lead.status === 'qualified' ? "bg-brand-primary/10 text-brand-primary" : "bg-white/5 text-white/40"
+                        )}>
+                          {lead.status}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-right"><ChevronRight size={18} className="text-white/20" /></td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-20 text-center">
+                        <Database size={48} className="mx-auto mb-4 text-white/5" />
+                        <p className="text-white/20 font-display font-bold text-xl">No Matching Intelligence Found</p>
+                        <p className="text-white/10 text-sm">Try broadening your search or run a simulation.</p>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -871,7 +928,7 @@ export default function App() {
                   <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary"><Building2 size={24} /></div>
                   <div>
                     <h2 className="text-2xl font-display font-bold">{selectedLead.name}</h2>
-                    <p className="text-white/40 text-sm">{selectedLead.industry}</p>
+                    <p className="text-white/40 text-sm">{selectedLead.main_category || selectedLead.industry}</p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedLead(null)} className="p-2 text-white/20 hover:text-white"><Plus size={24} className="rotate-45" /></button>

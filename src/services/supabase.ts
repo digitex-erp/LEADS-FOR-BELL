@@ -74,7 +74,43 @@ export type Contact = {
   created_at: string;
 };
 
-// --- API Functions ---
+export type DBCategory = {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+};
+
+export type DBSubcategory = {
+  id: string;
+  category_id: string;
+  name: string;
+};
+
+// ... existing code ...
+
+export const getDBCategories = async () => {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('name');
+
+  if (error) throw error;
+  return data as DBCategory[];
+};
+
+export const getDBSubcategories = async (categoryId: string) => {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('subcategories')
+    .select('*')
+    .eq('category_id', categoryId)
+    .order('name');
+
+  if (error) throw error;
+  return data as DBSubcategory[];
+};
 
 export const getCompanies = async () => {
   if (!supabase) return [];

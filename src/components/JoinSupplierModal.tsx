@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { X, Building2, ShieldCheck, Phone, ArrowRight, Loader2 } from 'lucide-react';
-import { upsertCompany } from '../services/supabase';
+import { X, Building2, ShieldCheck, Phone, ArrowRight, Loader2, Tag } from 'lucide-react';
+import { upsertCompany, getDBCategories, getDBSubcategories, DBCategory, DBSubcategory } from '../services/supabase';
 import { calculateLeadScore } from '../services/scoring';
 
 interface JoinSupplierModalProps {
@@ -12,12 +12,46 @@ interface JoinSupplierModalProps {
 
 export const JoinSupplierModal = ({ isOpen, onClose, onSuccess }: JoinSupplierModalProps) => {
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<DBCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<DBSubcategory[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     gst_number: '',
     mobile: '',
-    industry: 'Manufacturing'
+    industry: '',
+    sub_category: ''
   });
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await getDBCategories();
+        setCategories(data);
+        if (data.length > 0 && !formData.industry) {
+          setFormData(prev => ({ ...prev, industry: data[0].name }));
+        }
+      } catch (e) {
+        console.error("Failed to load categories:", e);
+      }
+    };
+    if (isOpen) loadCategories();
+  }, [isOpen]);
+
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      const selectedCat = categories.find(c => c.name === formData.industry);
+      if (selectedCat) {
+        try {
+          const data = await getDBSubcategories(selectedCat.id);
+          setSubcategories(data);
+          setFormData(prev => ({ ...prev, sub_category: data[0]?.name || '' }));
+        } catch (e) {
+          console.error("Failed to load subcategories:", e);
+        }
+      }
+    };
+    if (formData.industry) loadSubcategories();
+  }, [formData.industry, categories]);
 
   if (!isOpen) return null;
 
@@ -28,6 +62,7 @@ export const JoinSupplierModal = ({ isOpen, onClose, onSuccess }: JoinSupplierMo
       const score = calculateLeadScore(formData);
       await upsertCompany({
         ...formData,
+        main_category: formData.industry,
         lead_score: score,
         status: 'qualified',
         tags: ['Self-Onboarded', 'Real Supplier']
