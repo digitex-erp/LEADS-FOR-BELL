@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Database, TrendingUp, AlertCircle, ShoppingCart, Users, Search, Globe, Mail, Phone, ShieldCheck, CheckCircle2, Share2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase, Company, getCompanies, approveCompany } from '../../services/supabase';
+import { SuccessCard } from '../../components/SuccessCard';
 
 export const SuppliersPage = () => {
   const [suppliers, setSuppliers] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [approvalSuccess, setApprovalSuccess] = useState<{ category: string, name: string } | null>(null);
 
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
   const mainSiteUrl = "https://bell24h.com"; // Replace with actual main site URL
@@ -26,9 +29,13 @@ export const SuppliersPage = () => {
     fetchSuppliers();
   }, []);
 
-  const handleToggleApproval = async (id: string, currentStatus: boolean) => {
+  const handleToggleApproval = async (id: string, currentStatus: boolean, supplier: Company) => {
     try {
       await approveCompany(id, !currentStatus);
+      if (!currentStatus) {
+        setApprovalSuccess({ category: supplier.main_category || 'General', name: supplier.name });
+        setTimeout(() => setApprovalSuccess(null), 5000);
+      }
       fetchSuppliers();
     } catch (err: any) {
       alert(`Approval update failed: ${err.message}`);
@@ -74,6 +81,17 @@ export const SuppliersPage = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <AnimatePresence>
+        {approvalSuccess && (
+          <SuccessCard 
+            category={approvalSuccess.category}
+            count={1}
+            totalInCategory={suppliers.filter(s => s.main_category === approvalSuccess.category && s.is_approved).length}
+            onClose={() => setApprovalSuccess(null)}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-display font-bold">Lead Management [INTERNAL]</h2>
@@ -144,7 +162,7 @@ export const SuppliersPage = () => {
                   <td className="px-6 py-4">
                     {isAdmin ? (
                       <button 
-                        onClick={() => handleToggleApproval(supplier.id, supplier.is_approved)}
+                        onClick={() => handleToggleApproval(supplier.id, supplier.is_approved, supplier)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${
                           supplier.is_approved 
                             ? "bg-brand-primary/20 text-brand-primary border border-brand-primary/30" 

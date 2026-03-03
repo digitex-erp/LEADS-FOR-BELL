@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/v1/leads/verified",
-      "destination": "/api/v1/verified-leads.ts"
+      "destination": "/api/v1/leads/verified/route.ts"
     },
     {
       "source": "/api/(.*)",
