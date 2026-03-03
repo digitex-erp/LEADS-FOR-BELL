@@ -10,12 +10,12 @@ const AI_CONFIG = {
   minimax: {
     model: 'minimaxai/minimax-m2.5',
     baseUrl: 'https://integrate.api.nvidia.com/v1',
-    key: import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX
+    key: import.meta.env.VITE_NVIDIA_MINIMAX_KEY
   },
   deepseek: {
     model: 'deepseek-ai/deepseek-v3',
     baseUrl: 'https://integrate.api.nvidia.com/v1',
-    key: import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK
+    key: import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY
   }
 };
 
@@ -83,7 +83,7 @@ export const chatWithGrounding = async (
     // For now, let's just return a demo response to prevent crashes
     console.warn("⚠️ AI Engine: No keys found. Entering Demo Mode.");
     return {
-      text: "Bell24h AI is in Demo Mode. To activate real-time intelligence, please configure VITE_NVIDIA_API_KEY_MINIMAX in your environment.",
+      text: "Bell24h AI is in Demo Mode. To activate real-time intelligence, please configure VITE_NVIDIA_MINIMAX_KEY in your environment.",
       reasoning: null
     };
 

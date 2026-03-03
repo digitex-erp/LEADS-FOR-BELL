@@ -91,22 +91,70 @@ const AIStatusIndicator = ({ model }: { model: string }) => {
   );
 };
 
-const MarketMap = () => (
-  <div className="flex-1 glass rounded-3xl overflow-hidden relative bg-brand-dark/40 min-h-[200px]">
-    <div className="absolute inset-0 opacity-20 pointer-events-none" 
-      style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '24px 24px' }} 
-    />
-    <div className="absolute inset-0 flex items-center justify-center flex-col gap-4">
-      <div className="w-12 h-12 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary animate-pulse">
-        <MapIcon size={24} />
+const MarketMap = ({ leads, loading }: { leads: Company[], loading: boolean }) => {
+  if (loading) {
+    return (
+      <div className="flex-1 glass rounded-3xl flex flex-col items-center justify-center gap-4 bg-brand-dark/40 min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/40 text-sm font-mono animate-pulse">Syncing Marketplace Nodes...</p>
       </div>
-      <div className="text-center px-4">
-        <h3 className="font-display font-bold text-sm">Intelligence Map</h3>
-        <p className="text-white/40 text-[10px] mt-1">Grounding data active.</p>
+    );
+  }
+
+  if (leads.length === 0) {
+    return (
+      <div className="flex-1 glass rounded-3xl flex flex-col items-center justify-center gap-4 bg-brand-dark/40 min-h-[400px]">
+        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-white/20">
+          <Database size={32} />
+        </div>
+        <div className="text-center space-y-2">
+          <h3 className="font-display font-bold text-xl">No Data Detected</h3>
+          <p className="text-white/40 text-sm max-w-xs mx-auto">The intelligence layer is empty. Please run a simulation or import leads to populate the map.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const categoryCounts = leads.reduce((acc, lead) => {
+    const cat = lead.main_category || 'Other';
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const sortedCategories = Object.entries(categoryCounts)
+    .sort(([, a], [, b]) => b - a);
+
+  return (
+    <div className="flex-1 glass rounded-3xl overflow-hidden relative bg-brand-dark/40 min-h-[400px] p-8">
+      <div className="absolute inset-0 opacity-10 pointer-events-none" 
+        style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '24px 24px' }} 
+      />
+      
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {sortedCategories.map(([cat, count]) => (
+          <div key={cat} className="glass p-6 rounded-2xl border-white/5 hover:border-brand-primary/30 transition-all group cursor-default">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                <Building2 size={20} />
+              </div>
+              <span className="text-2xl font-bold font-display text-white/80">{count}</span>
+            </div>
+            <h4 className="font-bold text-sm truncate">{cat}</h4>
+            <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-brand-primary" 
+                style={{ width: `${Math.min(100, (count / leads.length) * 100)}%` }} 
+              />
+            </div>
+            <p className="mt-2 text-[10px] font-bold text-white/20 uppercase tracking-widest">
+              {((count / leads.length) * 100).toFixed(1)}% Market Share
+            </p>
+          </div>
+        ))}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const StatCard = ({ label, value, trend, icon: Icon, subtext }: { label: string, value: string, trend?: string, icon: any, subtext?: string }) => (
   <div className="glass p-5 rounded-xl flex flex-col gap-3 relative overflow-hidden">
@@ -350,8 +398,8 @@ export default function App() {
   useEffect(() => {
     try {
       const hasAnyConfig = !!(
-        (import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX && !import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX.includes("YOUR_")) ||
-        (import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK && !import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK.includes("YOUR_")) ||
+        (import.meta.env.VITE_NVIDIA_MINIMAX_KEY && !import.meta.env.VITE_NVIDIA_MINIMAX_KEY.includes("YOUR_")) ||
+        (import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY && !import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY.includes("YOUR_")) ||
         (import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY.includes("YOUR_")) ||
         (import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes("YOUR_"))
       );
@@ -742,7 +790,7 @@ export default function App() {
         {activeTab === 'categories' && (
           <div className="h-[calc(100vh-200px)] flex flex-col gap-6">
             <h2 className="text-xl font-display font-bold">Category Market Map</h2>
-            <MarketMap />
+            <MarketMap leads={leads} loading={loading} />
           </div>
         )}
 

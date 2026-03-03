@@ -13,17 +13,17 @@ export const SettingsPage = () => {
     },
     {
       name: 'NVIDIA Minimax (Primary)',
-      status: import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX ? 'Ready' : 'Missing',
+      status: import.meta.env.VITE_NVIDIA_MINIMAX_KEY ? 'Connected' : 'Missing',
       icon: Cpu,
       details: 'High-speed extraction node',
-      color: import.meta.env.VITE_NVIDIA_API_KEY_MINIMAX ? 'text-brand-primary' : 'text-amber-500'
+      color: import.meta.env.VITE_NVIDIA_MINIMAX_KEY ? 'text-brand-primary' : 'text-amber-500'
     },
     {
       name: 'DeepSeek (Backup)',
-      status: import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK ? 'Ready' : 'Missing',
+      status: import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY ? 'Connected' : 'Missing',
       icon: Shield,
       details: 'Reasoning & failover engine',
-      color: import.meta.env.VITE_NVIDIA_API_KEY_DEEPSEEK ? 'text-brand-primary' : 'text-amber-500'
+      color: import.meta.env.VITE_NVIDIA_DEEPSEEK_KEY ? 'text-brand-primary' : 'text-amber-500'
     }
   ];
 
